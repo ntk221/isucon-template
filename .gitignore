@@ -1,0 +1,25 @@
+# リポジトリのルートはサーバ上の REPO (既定は /home/isucon)。ルート直下は全部無視して、必要なものだけ許可する
+/*
+!/.gitignore
+!/.claude/
+!/Makefile
+!/mk/
+!/README.md
+!/env.sh
+!/env.sh.example
+!/ssh_config.example
+!/etc/
+!/tools/
+!/perf/
+!/notes/
+# 配布物のディレクトリを許可する。名前が webapp でなければ !/<WEBAPP>/ に直す
+!/webapp/
+
+# 配布物の巨大ファイルとビルドしたバイナリは、当日ここに足す
+/webapp/*/node_modules/
+
+/perf/.env
+# TLS 秘密鍵はリポジトリに入れない (deploy の rsync は --delete なしなのでサーバ側は残る)
+/etc/nginx/ssl/
+*.pprof
+/log/

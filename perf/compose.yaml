@@ -1,0 +1,53 @@
+# perf インスタンス上で docker compose up -d (make perf-deploy)
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "30m", max-file: "5" }
+
+services:
+  clickhouse:
+    image: clickhouse:25.12.1
+    logging: *logging
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    ports: ["8123:8123", "9000:9000"]
+    environment:
+      CLICKHOUSE_USER: isucon
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro   # 初回起動時のみ実行 (変えたら down -v)
+      - ch-data:/var/lib/clickhouse
+
+  grafana:
+    image: grafana/grafana:latest
+    logging: *logging
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}   # provisioning/datasources から参照
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - gf-data:/var/lib/grafana
+    depends_on: [clickhouse]
+
+  pyroscope:
+    image: grafana/pyroscope:latest
+    logging: *logging
+    ports: ["4040:4040"]
+
+  otelcol:
+    image: otel/opentelemetry-collector-contrib:0.142.0
+    logging: *logging
+    command: ["--config=/etc/otelcol/gateway.yaml"]
+    ports: ["4317:4317", "4318:4318"]
+    environment:
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - ./otelcol/gateway.yaml:/etc/otelcol/gateway.yaml:ro
+    depends_on: [clickhouse]
+
+volumes:
+  ch-data: {}
+  gf-data: {}

@@ -1,0 +1,265 @@
+{
+  "uid": "isucon",
+  "title": "ISUCON",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "timezone": "Asia/Tokyo",
+  "tags": [
+    "isucon"
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "スコア推移",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT bench AS time, score\nFROM isucon.results\nWHERE $__timeFilter(bench)\nORDER BY bench",
+          "refId": "A"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "always",
+            "pointSize": 6
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "ベンチ一覧 (新しい順)",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT toTimeZone(bench, 'Asia/Tokyo') AS time, score, commit, note\nFROM isucon.results\nWHERE $__timeFilter(bench)\nORDER BY bench DESC\nLIMIT 30",
+          "refId": "A"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "CPU 使用率 (%) — otelcol agent",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "rawSql": "SELECT\n    $__timeInterval(TimeUnix) AS time,\n    ResourceAttributes['host.name'] AS host,\n    round((1 - avg(Value)) * 100, 1) AS cpu\nFROM otel.otel_metrics_gauge\nWHERE MetricName = 'system.cpu.utilization'\n  AND Attributes['state'] = 'idle'\n  AND $__timeFilter(TimeUnix)\nGROUP BY time, host\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Nginx: 時間範囲内の最新ベンチ (alp, 合計時間順)",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 12
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT\n    uri, method, count AS \"回数\",\n    c_2xx AS \"2xx\", c_4xx AS \"4xx\", c_5xx AS \"5xx\",\n    round(sum, 2)        AS \"合計s\",\n    round(avg * 1000, 1) AS \"平均ms\",\n    round(p90 * 1000, 1) AS \"p90ms\",\n    round(max * 1000, 1) AS \"最大ms\"\nFROM isucon.alp\nWHERE bench = (SELECT max(bench) FROM isucon.alp WHERE $__timeFilter(bench))\nORDER BY sum DESC",
+          "refId": "A"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Nginx: 前回ベンチとの合計時間の差分 (マイナス = 速くなった)",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "WITH b AS (\n    SELECT DISTINCT bench FROM isucon.alp WHERE $__timeFilter(bench) ORDER BY bench DESC LIMIT 2\n)\nSELECT\n    uri, method,\n    round(anyIf(sum, bench = (SELECT max(bench) FROM b)), 2) AS \"今回s\",\n    round(anyIf(sum, bench = (SELECT min(bench) FROM b)), 2) AS \"前回s\",\n    round(\"今回s\" - \"前回s\", 2) AS \"差分s\",\n    anyIf(count, bench = (SELECT max(bench) FROM b)) AS \"今回回数\",\n    anyIf(count, bench = (SELECT min(bench) FROM b)) AS \"前回回数\"\nFROM isucon.alp\nWHERE bench IN (SELECT bench FROM b)\nGROUP BY uri, method\nORDER BY \"差分s\" ASC",
+          "refId": "A"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "MySQL: 時間範囲内の最新ベンチ (pt-query-digest, 合計時間順)",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 12
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "rawSql": "SELECT\n    fingerprint AS \"クエリ\",\n    cnt AS \"回数\",\n    round(qtime_sum, 2)        AS \"合計s\",\n    round(qtime_avg * 1000, 2) AS \"平均ms\",\n    rows_examined              AS \"Rows_examined\"\nFROM isucon.slow\nWHERE bench = (SELECT max(bench) FROM isucon.slow WHERE $__timeFilter(bench))\nORDER BY qtime_sum DESC\nLIMIT 30",
+          "refId": "A"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "プロファイリング (Pyroscope, CPU)",
+      "type": "flamegraph",
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 24,
+        "h": 14
+      },
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=\"isucon\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "profile",
+          "refId": "A"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ]
+}

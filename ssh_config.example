@@ -1,0 +1,21 @@
+# ~/.ssh/config に追記。Makefile は isu1/isu2/isu3/perf の Host 名だけを見る
+Host isu1
+  HostName 203.0.113.11
+  User isucon
+Host isu2
+  HostName 203.0.113.12
+  User isucon
+Host isu3
+  HostName 203.0.113.13
+  User isucon
+Host perf
+  HostName 203.0.113.99
+  User isucon
+Host isu* perf
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  LogLevel quiet
+  ServerAliveInterval 30
+  ControlMaster auto
+  ControlPath ~/.ssh/cm-%r@%h:%p
+  ControlPersist 10m

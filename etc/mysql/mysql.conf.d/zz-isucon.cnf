@@ -1,0 +1,12 @@
+# ISUCON 用 (zz- で最後に読まれて上書き)。反映は make deploy-db
+[mysqld]
+slow_query_log      = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time     = 0
+log_output          = FILE
+
+# 最終前はこちらに:
+# slow_query_log = 0
+
+# MySQL 8 なら binlog を切ると速い (MariaDB では未対応オプションなので消すこと)
+# disable-log-bin

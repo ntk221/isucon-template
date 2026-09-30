@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ISUCON perf instance (ClickHouse / Grafana / Pyroscope / otelcol gateway). default VPC 前提
+
+Parameters:
+  GitHubUsername:
+    Type: String
+    Description: isucon ユーザーの authorized_keys に入れる GitHub ユーザー (github.com/<user>.keys)
+  MyIp:
+    Type: String
+    Description: 自分の IP (x.x.x.x/32)。競技サーバの IP は make perf-allow で追加
+  InstanceType:
+    Type: String
+    Default: t4g.large
+  Ami:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id
+
+Resources:
+  Sg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: isucon perf
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22,   ToPort: 22,   CidrIp: !Ref MyIp }
+        - { IpProtocol: tcp, FromPort: 3000, ToPort: 3000, CidrIp: !Ref MyIp }   # Grafana
+        - { IpProtocol: tcp, FromPort: 8123, ToPort: 8123, CidrIp: !Ref MyIp }   # ClickHouse HTTP (make analyze)
+        - { IpProtocol: tcp, FromPort: 4040, ToPort: 4040, CidrIp: !Ref MyIp }   # Pyroscope
+        - { IpProtocol: tcp, FromPort: 4317, ToPort: 4318, CidrIp: !Ref MyIp }   # OTLP
+      Tags: [{ Key: Name, Value: isucon-perf }]
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref Ami
+      SecurityGroupIds: [!Ref Sg]
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeSize: 50, VolumeType: gp3, DeleteOnTermination: true }
+      Tags: [{ Key: Name, Value: isucon-perf }]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -eux
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io docker-compose-v2 jq
+          useradd -m -s /bin/bash -G sudo,docker isucon
+          echo 'isucon ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/isucon
+          chmod 440 /etc/sudoers.d/isucon
+          install -d -o isucon -g isucon -m 700 /home/isucon/.ssh
+          curl -fsSL https://github.com/${GitHubUsername}.keys > /home/isucon/.ssh/authorized_keys
+          chown isucon:isucon /home/isucon/.ssh/authorized_keys
+          chmod 600 /home/isucon/.ssh/authorized_keys
+
+  Eip:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref Instance
+
+Outputs:
+  PublicIp:
+    Value: !Ref Eip
+  SecurityGroupId:
+    Value: !Ref Sg

@@ -1,0 +1,12 @@
+# alp の集計設定。列順は perf/clickhouse/init.sql の isucon.alp と一致させること
+# matching_groups は当日エンドポイントを見て書き換える (ID を含む URI をまとめる)
+matching_groups:
+  - '^/api/[a-z]+/\d+'
+  - '^/image/\d+\.(jpg|png|gif)'
+  - '^/posts/\d+'
+  - '^/@\w+'
+sort: sum
+reverse: true
+output: count,2xx,4xx,5xx,method,uri,sum,avg,p90,max
+format: tsv
+noheaders: true
