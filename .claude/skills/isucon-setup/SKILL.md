@@ -7,7 +7,7 @@ description: ISUCON の競技サーバ (練習の過去問でも本番でも) �
 
 ゴール: ローカルで `make deploy` を叩くと、pull → build → restart → smoke が通る。
 前提:
-- リポジトリのルートは、サーバ上の `REPO` (`mk/vars.mk` の変数。既定値は `/home/isucon`) に置く。`REPO` の決め方は手順 3 に書く
+- リポジトリのルートは、サーバ上の `REPO` (`mk/vars.mk` の変数。既定値は `/home/isucon`) に置く。`EXEC` がその下に無いと make は止まる。そのときの決め方は手順 3 に書く
 - Makefile は `~/.ssh/config` の Host 名 (isu1/isu2/isu3) しか知らない。`make -n <ターゲット>` で、実際に走るコマンドを実行せずに見られる
 
 各ステップで確認を取り、失敗したら先へ進まない。サーバ側で直接ファイルを編集しない (すべてリポジトリ経由)。
@@ -69,34 +69,37 @@ SH
 ```
 
 見るべき点 (マニュアルとの差分を中心に):
-- **配布物が `REPO` (既定は `/home/isucon`) の下にあるか**。`WorkingDirectory` と `ExecStart` のパスで見る。無ければ手順 3 で `REPO` を決め直す
-- **動いている実装のサービス名** (例: `isucari.golang`) と `ExecStart` のバイナリ名、`WorkingDirectory`
-- **配布物のディレクトリ名** (`webapp` / `isucari` / `private_isu` など)
-- **nginx の listen ポート**。80 が無く 443 だけなら smoke を https にする必要がある
-- **巨大ファイル** (画像、初期データの SQL、ビルド済みバイナリ)。git にも rsync にも入れない
+- **動いている実装のサービス名** (例: `isucari.golang`) と、その `ExecStart` のパス。手順 3 で `SERVICE` と `EXEC` にそのまま入れる
+- **`ExecStart` が `REPO` (既定は `/home/isucon`) の下にあるか**。無ければ手順 3 で `REPO` を決め直す
+- **`ExecStart` のディレクトリに go.mod があるか**。無ければ手順 3 で `APP_DIR` を手で書く
+- **nginx の listen ポートと `server_name`**。smoke の URL を決めるのに使う
+- **巨大ファイル** (画像、初期データの SQL)。git にも rsync にも入れない
 - MySQL か MariaDB か (slow log の conf の置き場所が変わる)
 
 ## 3. リポジトリ側を書き換える
 
 1. **`mk/vars.mk` の変数**
-   - Makefile は入口で、ターゲット名を見て `mk/deploy.mk` `mk/setup.mk` `mk/analyze.mk` `mk/perf.mk` `mk/final.mk` に振り分けるだけ
-   - 問題ごとに変わる値は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。書き換えるのはこのファイルだけ
-   - `REPO` は、サーバ上でリポジトリのルートにするディレクトリ。次のように決める
-     - 配布物の置き場所に合わせる。手順 2 の `systemctl cat` で見た `WorkingDirectory` と `ExecStart` が指すディレクトリを含む場所にする。そうすれば配布物を動かさずに git 管理でき、systemd の設定も書き換えずに済む
-     - ISUCON の配布物はたいてい `/home/isucon` の下にあるので、既定値は `/home/isucon` にしてある。今回の問題でもそうか確かめる
-     - 配布物がホームの外 (`/opt` など) にあれば、`REPO` を変えるか、アプリの配置と systemd の設定を変える。どちらにするかはユーザーと決める
-   - `HOST` には、操作するサーバの Host 名を入れる。今の `mk/` は 1 台構成用で、全ファイルが同じ 1 台を操作する。2 台以上に分けるなら、ターゲットの中身をホストごとに書き足す必要がある
-   - `SERVICE` には参照実装のサービス名を、`BIN` には `ExecStart` のバイナリ名を入れる
-   - `APP_DIR` には、アプリのディレクトリを `$(REPO)` からのパスで入れる (例: `$(REPO)/isucari/webapp/go`)
-   - `DB_SERVICE` には DB のサービス名を入れる。MySQL なら `mysql`、MariaDB なら `mariadb`
-   - `WEBAPP` には、配布物のトップのディレクトリ名を入れる
-   - `EXCLUDE` には、取り込まない巨大ファイルを入れる。**rsync の転送元 `$(WEBAPP)/` からの相対**で書く (例: `WEBAPP` が `isucari` なら `/webapp/public/upload`。`/public/upload` と書くと効かず、GB 単位で落ちてくる)
-   - `PATTERN` には、参照実装のサービス名に共通する文字列を入れる (例: `isucari`)
-   - `REPO_URL` には GitHub のリポジトリを、`GITHUB_USER` には GitHub のユーザー名を入れる
+   - Makefile は入口で、ターゲット名を見て `mk/deploy.mk` `mk/setup.mk` `mk/analyze.mk` `mk/perf.mk` に振り分けるだけ
+   - 問題ごとに変わる値は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。書き換えるのはこのファイルの上半分だけ。必須の値が空のままだと、make は案内を出して止まる
+   - 書く値 (手順 0 と 2 の結果を写す)
+     - `HOST`: 操作するサーバの Host 名。今の `mk/` は 1 台構成用で、全ファイルが同じ 1 台を操作する。2 台以上に分けるなら、ターゲットの中身をホストごとに書き足す
+     - `SERVICE`: 動いている参照実装のサービス名 (例: `isucari.golang`)
+     - `EXEC`: `systemctl cat <SERVICE>` の `ExecStart` のパス。引数が付いていればパスだけ (例: `/home/isucon/isucari/webapp/go/isucari`)
+     - `SMOKE_URL`: deploy の最後にサーバ上から curl する URL。nginx が 80 なら `http://localhost/`、443 だけなら `https://localhost/`。`server_name` で名前を絞っていて localhost では返らないなら、マニュアルのホスト名にする。`ssh isu1 'curl -sk -o /dev/null -w "%{http_code}\n" <URL>'` が 200 になることを確かめる
+     - `DB_SERVICE`: MySQL なら `mysql`、MariaDB なら `mariadb`
+     - `EXCLUDE`: 取り込まない巨大ファイル。絶対パスか、配布物のディレクトリ (`WEBAPP`) からの相対 (例: `/webapp/public/upload`) で書く。`/public/upload` のように途中から書くと効かず、GB 単位で落ちてくる。ビルド済みのバイナリ (`EXEC`) は自動で除外される
+     - `REPO_URL` と `GITHUB_USER`: GitHub のリポジトリと、GitHub のユーザー名
+   - 自動で決まる値 (`EXEC` から計算する。`make -n deploy` と `make -n webapp-pull` で確かめる)
+     - `APP_DIR`: `EXEC` のディレクトリ。ここで `go build` する
+     - `BIN`: `EXEC` のファイル名
+     - `WEBAPP`: `REPO` の直下にある配布物のディレクトリ (例: `isucari`)
+     - ビルドしたバイナリがソースと別のディレクトリに置かれる問題では、`APP_DIR` の行を手で書き換える
+   - `REPO`: サーバ上でリポジトリのルートにするディレクトリ。既定値は `/home/isucon` で、普段は変えない
+     - 配布物を動かさずに git 管理できるように、`ExecStart` を含む場所にしている。`EXEC` が `REPO` の下に無いと、make はエラーで止まる
+     - そのときは `REPO` を変えるか、アプリの配置と systemd の設定を変える。どちらにするかはユーザーと決める
    - ビルドは Go 前提 (`deploy.mk` の `go build` の行)。他の言語で戦うなら、その行を書き換える
-2. **smoke の URL**: `mk/vars.mk` の `SMOKE_URL`。nginx が 443 だけなら `https://localhost/`、80 なら `http://localhost/` にする。`vars.mk` の必須の値が空のままだと、make は案内を出して止まる
-3. **`.gitignore`**: 先頭の `/*` で `REPO` 直下は全部無視なので、配布物のディレクトリを `!/<WEBAPP>/` で許可する。巨大ファイル、ビルド生成物 (`APP_DIR/BIN`)、`node_modules`、`/etc/nginx/ssl/` (TLS 秘密鍵) を除外する
-4. 除外の効き方は、仮のリポジトリにダミーファイルを置いて `git add -A && git status -s` で確認できる
+2. **`.gitignore`**: 先頭の `/*` で `REPO` 直下は全部無視なので、配布物のディレクトリを `!/<WEBAPP>/` で許可する。巨大ファイル、ビルド生成物 (`EXEC` を `REPO` からのパスにしたもの。例: `/isucari/webapp/go/isucari`)、`node_modules`、`/etc/nginx/ssl/` (TLS 秘密鍵) を除外する
+3. 除外の効き方は、仮のリポジトリにダミーファイルを置いて `git add -A && git status -s` で確認できる
 
 ## 4. GitHub とサーバの git
 

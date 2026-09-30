@@ -9,7 +9,7 @@ keys:
 	@echo "この公開鍵を GitHub の Deploy key に登録する (gh repo deploy-key add <file> --title $(HOST))"
 
 webapp-pull:
-	rsync -rl --exclude .git $(addprefix --exclude ,$(EXCLUDE)) $(HOST):$(REPO)/$(WEBAPP)/ $(WEBAPP)/
+	rsync -rl --exclude .git $(addprefix --exclude ,$(patsubst $(REPO)/$(WEBAPP)/%,/%,$(EXCLUDE) $(EXEC))) $(HOST):$(REPO)/$(WEBAPP)/ $(WEBAPP)/
 	du -sh $(WEBAPP)
 
 etc-pull:

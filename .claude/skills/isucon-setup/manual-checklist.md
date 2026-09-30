@@ -26,7 +26,7 @@
 |---|---|---|---|---|
 | B1 | 参照実装のサービス名と初期言語 | `SERVICE`。調査の grep パターン | `isucari.golang.service`、初期は Go | `systemctl list-units --type=service --state=running`。アプリのポートから逆引き: `sudo ss -ltnp` の pid → `systemctl status <pid>` |
 | B2 | 言語の切り替え手順 | 切り替えで nginx 等の設定も変わるか | PHP だけ nginx の conf も差し替え | `/etc/nginx/sites-available/` に言語別の conf が無いか見る |
-| B3 | アプリのディレクトリとビルド方法 | `WEBAPP` / `APP_DIR` / `BIN` | `/home/isucon/isucari/webapp/go` | `systemctl cat <service>` の `WorkingDirectory` と `ExecStart`。ディレクトリ内の Makefile / go.mod |
+| B3 | アプリのディレクトリとビルド方法 | `EXEC` (`APP_DIR` / `BIN` / `WEBAPP` はここから決まる) | `/home/isucon/isucari/webapp/go/isucari` | `systemctl cat <service>` の `ExecStart`。そのディレクトリに go.mod があるか |
 | B4 | 環境変数・接続先の設定 | DB を分けるときに直す場所 | `/home/isucon/env.sh` | `systemctl cat` の `EnvironmentFile` と `Environment=` |
 | B5 | Web サーバと DB の種類・バージョン | 設定ファイルの置き場所と使えるオプション | nginx、MySQL | `nginx -v`、`mysql --version`。MariaDB なら conf は `mariadb.conf.d/` |
 | B6 | 公開ポート、TLS、ホスト名 | smoke の URL。ブラウザ確認の方法 | 80 / 443、証明書は `isucon9.catatsuy.org` | `sudo ss -ltnp`。nginx の `listen` と `server_name`。証明書は `openssl x509 -noout -subject -ext subjectAltName -in <cert>` |

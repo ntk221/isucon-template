@@ -5,7 +5,7 @@
 ```
 isucon/                      ← サーバでは /home/isucon
 ├── Makefile                 # 入口。ターゲット名を見て mk/ のファイルに振り分ける (make help)
-├── mk/                      # 役割ごとの Makefile。deploy / setup / analyze / perf / final
+├── mk/                      # 役割ごとの Makefile。deploy / setup / analyze / perf
 │   └── vars.mk              # 問題ごとに変わる値。当日はここを書き換える
 ├── env.sh                   # systemd の EnvironmentFile (make etc-pull で取り込む)
 ├── etc/                     # /etc をパスそのままで写す (make deploy で rsync)
@@ -40,9 +40,8 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 | `mk/setup.mk` | 初回だけ | `keys` `webapp-pull` `etc-pull` `bootstrap` |
 | `mk/analyze.mk` | ログの集計 | `setup` `prep` `analyze` |
 | `mk/perf.mk` | 計測用サーバ (使う場合だけ) | `perf-up` `perf-ip` `perf-deploy` `perf-allow-ip` `perf-open` `perf-allow` `perf-agent` `perf-agent-off` `perf-push` `perf-down` |
-| `mk/final.mk` | 最終確認 | `final` |
 
-- 問題ごとに変わる値 (`HOST` `REPO` `SERVICE` など) は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。当日に書き換えるのはこのファイルだけ
+- 問題ごとに変わる値 (`HOST` `SERVICE` `EXEC` など) は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。当日に書き換えるのはこのファイルだけ
 - そのファイルの中でしか使わない値 (ログの場所、計測用サーバの設定など) は、各ファイルの冒頭にある
 - 実行時に上書きもできる (`make deploy HOST=isu2`)
 - `make -n <ターゲット>` で、実際に走るコマンドを実行せずに見られる
@@ -84,10 +83,7 @@ private-isu は 1 台なので、今の `mk/` がそのまま使える。`mk/var
 
 ```make
 SERVICE := isu-go
-BIN     := app
-APP_DIR := $(REPO)/private_isu/webapp/golang
-WEBAPP  := private_isu
-PATTERN := isu-
+EXEC    := /home/isucon/private_isu/webapp/golang/app
 ```
 
 - 初期状態は `isu-ruby` が動いている: `ssh isu1 'sudo systemctl disable --now isu-ruby && sudo systemctl enable --now isu-go'`
@@ -96,8 +92,8 @@ PATTERN := isu-
 ## 当日 (最初の 30 分)
 
 1. `~/.ssh/config` に isu1/isu2/isu3 を書く（本番は 3 台。1 台しかなければ全部 isu1 でよい）
-2. 当日マニュアルの「参考実装の切り替え方法」から service 名を確認して、`mk/vars.mk` の `SERVICE` / `BIN` / `APP_DIR` を書き換える
-   （`ssh isu1 systemctl cat <service>` の `ExecStart` がバイナリ名）。**`.gitignore` の生成物の行（`/webapp/go/isuride`）も同じパスに直す**
+2. 当日マニュアルの「参考実装の切り替え方法」から service 名を確認して、`mk/vars.mk` の `SERVICE` と `EXEC` を書き換える
+   （`EXEC` は `ssh isu1 systemctl cat <service>` の `ExecStart` のパスをそのまま。`APP_DIR` `BIN` `WEBAPP` はそこから決まる）。**`.gitignore` の生成物の行（`/webapp/go/isuride`）も同じパスに直す**
 3. `make keys` → 表示された公開鍵を GitHub の Deploy keys に登録
 4. `make setup` （alp / pt-query-digest）
 5. isu1 上で初回コミット:
@@ -108,7 +104,7 @@ PATTERN := isu-
    git add -A && git commit -m init && git push -u origin main
    ```
    もしくはローカルで `make webapp-pull etc-pull` → commit/push → `make bootstrap`
-   （配布物のディレクトリ名が `webapp` でなければ `mk/vars.mk` の `WEBAPP` を合わせる）
+   （配布物のディレクトリ名が `webapp` でなければ `.gitignore` の `!/webapp/` を合わせる）
 6. `etc/nginx/nginx.conf` の `access_log` を `ltsv` に（`sites-enabled/*` や `conf.d/*` に別の `access_log` があればそちらも）、MySQL の slow log は `etc/mysql/mysql.conf.d/zz-isucon.cnf` で ON → `make deploy deploy-db`
 7. `make perf-allow perf-agent` （CPU を Grafana に出す。時間が無ければ飛ばしてよい）
 8. 初回ベンチ → `make analyze SCORE=...`
@@ -140,7 +136,7 @@ if addr := os.Getenv("PYROSCOPE_ADDR"); addr != "" {
 1. `etc/nginx/nginx.conf` → `access_log off;`、`etc/mysql/mysql.conf.d/zz-isucon.cnf` → `slow_query_log = 0`、`env.sh` の `PYROSCOPE_ADDR=` を空に
 2. `make deploy deploy-db`
 3. 計測用サーバを使ったなら `make perf-agent-off`
-4. `make final` （サービスの状態、ログの設定、`git status` を表示するだけ）。使っていない他言語のサービスが `disabled` か、`git status` が空かを見る
+4. 使っていない他言語のサービスが `disabled` か、`ssh isu1 systemctl list-unit-files` で見る（`enabled` のままだと、再起動したときに同じポートを取り合う）
 5. 余裕があれば 1 台再起動して動くか
 6. 競技後: `make perf-down`（EIP + EC2 を消す。放置すると課金が続く）
 
