@@ -1,15 +1,5 @@
 # isucon
 
-## このテンプレートの使い方
-
-前日までの準備が終わった状態のリポジトリ。問題に依存するもの (配布物、サーバの設定、`mk/vars.mk` の値) は入っていない。練習や本番のたびに、ここから新しいリポジトリを作る。
-
-```
-gh repo create <owner>/<repo> --template ntk221/isucon-template --private --clone
-```
-
-作ったあとは、当日の手順 (Notion の「isucon 初期セットアップ」か、`.claude/skills/isucon-setup/`) に沿って進める。`mk/vars.mk` の必須の値が空のままだと、make は案内を出して止まる。
-
 デプロイ (`Makefile` と `mk/`) と計測基盤 (`perf/`) の一式。リポジトリは、サーバ上の `REPO` (既定値は `/home/isucon`) に置く。
 
 ```
@@ -23,6 +13,16 @@ isucon/                      ← サーバでは /home/isucon
 ├── webapp/                  # 運営配布の webapp をそのまま (make webapp-pull)
 └── perf/                    # 別 EC2 に立てる ClickHouse / Grafana / Pyroscope / otelcol
 ```
+
+## このテンプレートの使い方
+
+前日までの準備が終わった状態のリポジトリ。問題に依存するもの (配布物、サーバの設定、`mk/vars.mk` の値) は入っていない。練習や本番のたびに、ここから新しいリポジトリを作る。
+
+```
+gh repo create <owner>/<repo> --template ntk221/isucon-template --private --clone
+```
+
+作ったあとは、当日の手順 (Notion の「isucon 初期セットアップ」か、`.claude/skills/isucon-setup/`) に沿って進める。`mk/vars.mk` の必須の値が空のままだと、make は案内を出して止まる。
 
 ## ホスト名 (isu1 / isu2 / isu3)
 
