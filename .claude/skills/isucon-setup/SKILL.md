@@ -120,8 +120,7 @@ du -sh <WEBAPP>   # 数 MB 程度であること。大きければ `mk/vars.mk` 
 - `git ls-files | grep -iE 'pem|ssl|\.env$'` で秘密が入っていないことを確認してから commit / push
 
 ```sh
-git init -b main && git remote add origin https://github.com/<owner>/<repo>.git
-git add -A && git commit -m init && git push -u origin main
+git add -A && git commit -m "配布物と設定を取り込む" && git push   # テンプレートから clone したリポジトリなので git init は要らない
 make bootstrap    # サーバ側 git status が空であること
 ```
 
