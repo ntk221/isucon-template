@@ -101,7 +101,7 @@ SH
 ## 4. GitHub とサーバの git
 
 ```sh
-gh repo create <owner>/<repo> --private
+gh repo create <owner>/<repo> --template ntk221/isucon-template --private --clone   # 前日に済ませていなければ
 make setup        # alp / pt-query-digest
 make keys         # 表示された公開鍵を Deploy key に登録する
 gh repo deploy-key add <pubkey file> -R <owner>/<repo> --title isu1
