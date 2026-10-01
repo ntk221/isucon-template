@@ -1,3 +1,4 @@
+# ログの集計
 include mk/vars.mk
 
 ACCESS_LOG := /var/log/nginx/access.log
@@ -7,16 +8,16 @@ BENCH      := $(shell date +%s)
 SCORE      ?=
 NOTE       ?=
 
-.PHONY: setup prep analyze
+.PHONY: install-tools prep analyze
 
-setup:
+install-tools: ## isu1 に alp / pt-query-digest を入れる
 	ssh $(HOST) 'command -v alp >/dev/null || (curl -sL https://github.com/tkuchiki/alp/releases/latest/download/alp_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp alp && sudo install /tmp/alp /usr/local/bin/alp)'
 	ssh $(HOST) 'command -v pt-query-digest >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq percona-toolkit)'
 
-prep:
+prep: ## isu1 のアクセスログ / slow log を空にする
 	ssh $(HOST) 'sudo truncate -c -s0 $(ACCESS_LOG) $(SLOW_LOG)'
 
-analyze:
+analyze: ## alp / slow query / スコアを log/ に保存 (SCORE= 必須)
 	@test -n "$(SCORE)" || { echo "SCORE=12345 を指定する (fail なら SCORE=0)"; exit 1; }
 	mkdir -p $(LOG_DIR)
 	ssh $(HOST) 'sudo alp ltsv --file $(ACCESS_LOG) --config $(REPO)/tools/alp.yaml' > $(LOG_DIR)/$(BENCH)-alp.tsv

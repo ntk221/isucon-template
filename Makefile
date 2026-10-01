@@ -1,16 +1,17 @@
 DEPLOY  := deploy deploy-db log
 SETUP   := keys webapp-pull etc-pull bootstrap
-ANALYZE := setup prep analyze
+ANALYZE := install-tools prep analyze
 PERF    := perf-up perf-ip perf-deploy perf-allow-ip perf-open perf-allow perf-agent perf-agent-off perf-push perf-down
 
 .DEFAULT_GOAL := help
 .PHONY: help $(DEPLOY) $(SETUP) $(ANALYZE) $(PERF)
 
+# 各ファイルの 1 行目 (# 役割) と、ターゲット行の ## 説明 を表示する
 help:
-	@echo "mk/deploy.mk   デプロイ          $(DEPLOY)"
-	@echo "mk/setup.mk    初回だけ          $(SETUP)"
-	@echo "mk/analyze.mk  ログの集計        $(ANALYZE)"
-	@echo "mk/perf.mk     計測用サーバ      $(PERF)"
+	@for f in mk/deploy.mk mk/setup.mk mk/analyze.mk mk/perf.mk; do \
+	  echo "$$f  $$(sed -n '1s/^# //p' $$f)"; \
+	  awk -F':.*## ' '/^[a-z-]+:.*## /{printf "  %-15s %s\n", $$1, $$2}' $$f; \
+	done
 
 $(DEPLOY):
 	@$(MAKE) --no-print-directory -f mk/deploy.mk $@

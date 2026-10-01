@@ -38,7 +38,7 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 |---|---|---|
 | `mk/deploy.mk` | デプロイ | `deploy` `deploy-db` `log` |
 | `mk/setup.mk` | 初回だけ | `keys` `webapp-pull` `etc-pull` `bootstrap` |
-| `mk/analyze.mk` | ログの集計 | `setup` `prep` `analyze` |
+| `mk/analyze.mk` | ログの集計 | `install-tools` `prep` `analyze` |
 | `mk/perf.mk` | 計測用サーバ (使う場合だけ) | `perf-up` `perf-ip` `perf-deploy` `perf-allow-ip` `perf-open` `perf-allow` `perf-agent` `perf-agent-off` `perf-push` `perf-down` |
 
 - 問題ごとに変わる値 (`HOST` `SERVICE` `EXEC` など) は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。当日に書き換えるのはこのファイルだけ
@@ -95,7 +95,7 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
 2. 当日マニュアルの「参考実装の切り替え方法」から service 名を確認して、`mk/vars.mk` の `SERVICE` と `EXEC` を書き換える
    （`EXEC` は `ssh isu1 systemctl cat <service>` の `ExecStart` のパスをそのまま。`APP_DIR` `BIN` `WEBAPP` はそこから決まる）。**`.gitignore` の生成物の行（`/webapp/go/isuride`）も同じパスに直す**
 3. `make keys` → 表示された公開鍵を GitHub の Deploy keys に登録
-4. `make setup` （alp / pt-query-digest）
+4. `make install-tools` （alp / pt-query-digest）
 5. isu1 上で初回コミット:
    ```
    ssh isu1
