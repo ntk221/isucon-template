@@ -114,8 +114,8 @@ ssh isu1 'ssh -T git@github.com'   # "Hi <owner>/<repo>!" なら OK
 ## 5. 取り込み → 初回 push → bootstrap
 
 ```sh
-make webapp-pull etc-pull
-du -sh <WEBAPP>   # 数 MB 程度であること。大きければ `mk/vars.mk` の EXCLUDE を直し、手元に落ちた分を消してやり直す (rsync の除外は手元のファイルを消さない)
+make webapp-pull etc-pull     # 先に dry-run で取り込む量を出す。LIMIT_MB (100) を超えるなら取り込まずに止まり、サーバの大きいディレクトリを出す。それを EXCLUDE に足してやり直す
+git add -n <WEBAPP> | wc -l   # git に入るファイル数。0 なら配布物が無視されている
 ```
 
 - **nginx の access_log を ltsv に**: `log_format ltsv` は `etc/nginx/conf.d/ltsv.conf` にあり `include conf.d/*.conf;` で読まれる。**`access_log ... ltsv;` はその include より後ろに置く** (前だと unknown log format で nginx が落ちる)。`sites-enabled/` 側の `access_log` も確認
