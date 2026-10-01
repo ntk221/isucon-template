@@ -87,7 +87,7 @@ SH
      - `EXEC`: `systemctl cat <SERVICE>` の `ExecStart` のパス。引数が付いていればパスだけ (例: `/home/isucon/isucari/webapp/go/isucari`)
      - `SMOKE_URL`: deploy の最後にサーバ上から curl する URL。nginx が 80 なら `http://localhost/`、443 だけなら `https://localhost/`。`server_name` で名前を絞っていて localhost では返らないなら、マニュアルのホスト名にする。`ssh isu1 'curl -sk -o /dev/null -w "%{http_code}\n" <URL>'` が 200 になることを確かめる
      - `DB_SERVICE`: MySQL なら `mysql`、MariaDB なら `mariadb`
-     - `EXCLUDE`: 取り込まない巨大ファイル。絶対パスか、配布物のディレクトリ (`WEBAPP`) からの相対 (例: `/webapp/public/upload`) で書く。`/public/upload` のように途中から書くと効かず、GB 単位で落ちてくる。ビルド済みのバイナリ (`EXEC`) は自動で除外される
+     - `EXCLUDE`: 取り込まない巨大ファイル。絶対パスか、配布物のディレクトリ (`WEBAPP`) からの相対 (例: `/webapp/public/upload`) で書く。`/public/upload` のように途中から書くと効かず、GB 単位で落ちてくる。ビルド済みのバイナリ (`EXEC`) は自動で除外される。ここに書いたものは `make webapp-pull` が `.gitignore` にも書くので、サーバ上でも無視される
      - `REPO_URL` と `GITHUB_USER`: GitHub のリポジトリと、GitHub のユーザー名
    - 自動で決まる値 (`EXEC` から計算する。`make -n deploy` と `make -n webapp-pull` で確かめる)
      - `APP_DIR`: `EXEC` のディレクトリ。ここで `go build` する
@@ -98,8 +98,8 @@ SH
      - 配布物を動かさずに git 管理できるように、`ExecStart` を含む場所にしている。`EXEC` が `REPO` の下に無いと、make はエラーで止まる
      - そのときは `REPO` を変えるか、アプリの配置と systemd の設定を変える。どちらにするかはユーザーと決める
    - ビルドは Go 前提 (`deploy.mk` の `go build` の行)。他の言語で戦うなら、その行を書き換える
-2. **`.gitignore`**: 先頭の `/*` で `REPO` 直下は全部無視なので、配布物のディレクトリを `!/<WEBAPP>/` で許可する。巨大ファイル、ビルド生成物 (`EXEC` を `REPO` からのパスにしたもの。例: `/isucari/webapp/go/isucari`)、`node_modules`、`/etc/nginx/ssl/` (TLS 秘密鍵) を除外する
-3. 除外の効き方は、仮のリポジトリにダミーファイルを置いて `git add -A && git status -s` で確認できる
+2. **`.gitignore`**: 配布物まわりは手で書かない。先頭の `/*` で `REPO` 直下は全部無視し、配布物のディレクトリの許可 (`!/<WEBAPP>/`) と `EXCLUDE` / `EXEC` の除外は、`make webapp-pull` が末尾の `# >>> webapp-pull` のブロックに書く
+3. 除外の効き方は、`make webapp-pull` のあと `git add -n <WEBAPP> | wc -l` と `git add -n <WEBAPP> | grep -E 'upload|node_modules'` で確認できる
 
 ## 4. GitHub とサーバの git
 
@@ -115,7 +115,7 @@ ssh isu1 'ssh -T git@github.com'   # "Hi <owner>/<repo>!" なら OK
 
 ```sh
 make webapp-pull etc-pull
-du -sh <WEBAPP>   # 数 MB 程度であること。大きければ `mk/vars.mk` の EXCLUDE を直して消してやり直す
+du -sh <WEBAPP>   # 数 MB 程度であること。大きければ `mk/vars.mk` の EXCLUDE を直し、手元に落ちた分を消してやり直す (rsync の除外は手元のファイルを消さない)
 ```
 
 - **nginx の access_log を ltsv に**: `log_format ltsv` は `etc/nginx/conf.d/ltsv.conf` にあり `include conf.d/*.conf;` で読まれる。**`access_log ... ltsv;` はその include より後ろに置く** (前だと unknown log format で nginx が落ちる)。`sites-enabled/` 側の `access_log` も確認
@@ -124,7 +124,7 @@ du -sh <WEBAPP>   # 数 MB 程度であること。大きければ `mk/vars.mk` 
 
 ```sh
 git add -A && git commit -m "配布物と設定を取り込む" && git push   # テンプレートから clone したリポジトリなので git init は要らない
-make bootstrap    # サーバ側 git status が空であること
+make bootstrap    # origin/main に <WEBAPP>/ が無ければ止まる。サーバ側 git status が空であること
 ```
 
 ## 6. 初回 deploy と確認
