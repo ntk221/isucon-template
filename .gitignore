@@ -12,11 +12,8 @@
 !/tools/
 !/perf/
 !/notes/
-# 配布物のディレクトリを許可する。名前が webapp でなければ !/<WEBAPP>/ に直す
-!/webapp/
-
-# 配布物の巨大ファイルとビルドしたバイナリは、当日ここに足す
-/webapp/*/node_modules/
+# 配布物のディレクトリの許可と、取り込まない巨大ファイル・バイナリの除外は、make webapp-pull が末尾に書く
+# (mk/vars.mk の EXEC / EXCLUDE から決まる。ここには書かない)
 
 /perf/.env
 # TLS 秘密鍵はリポジトリに入れない (deploy の rsync は --delete なしなのでサーバ側は残る)
