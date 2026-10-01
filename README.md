@@ -96,14 +96,7 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
    （`EXEC` は `ssh isu1 systemctl cat <service>` の `ExecStart` のパスをそのまま。`APP_DIR` `BIN` `WEBAPP` はそこから決まる）。**`.gitignore` の生成物の行（`/webapp/go/isuride`）も同じパスに直す**
 3. `make keys` → 表示された公開鍵を GitHub の Deploy keys に登録
 4. `make install-tools` （alp / pt-query-digest）
-5. isu1 上で初回コミット:
-   ```
-   ssh isu1
-   cd ~ && git init && git remote add origin <REPO_URL>
-   # ローカルからこのリポジトリの Makefile, etc/, tools/, .gitignore を isu1 に置く (scp か git fetch)
-   git add -A && git commit -m init && git push -u origin main
-   ```
-   もしくはローカルで `make webapp-pull etc-pull` → commit/push → `make bootstrap`
+5. ローカルで `make webapp-pull etc-pull` → `du -sh <WEBAPP>` で大きさを確認 → commit/push → `make bootstrap`
    （配布物のディレクトリ名が `webapp` でなければ `.gitignore` の `!/webapp/` を合わせる）
 6. `etc/nginx/nginx.conf` の `access_log` を `ltsv` に（`sites-enabled/*` や `conf.d/*` に別の `access_log` があればそちらも）、MySQL の slow log は `etc/mysql/mysql.conf.d/zz-isucon.cnf` で ON → `make deploy deploy-db`
 7. `make perf-allow perf-agent` （CPU を Grafana に出す。時間が無ければ飛ばしてよい）
