@@ -1,12 +1,15 @@
 # デプロイ
 include mk/vars.mk
 
-BRANCH     ?= main
+# 既定は今 checkout しているブランチ。detached HEAD なら空になるので止める
+BRANCH     ?= $(shell git branch --show-current)
 N          ?= 100
+NEED_BRANCH = @test -n "$(BRANCH)" || { echo "ブランチに checkout していない (detached HEAD)。BRANCH=xxx を指定する"; exit 1; }
 
 .PHONY: deploy deploy-db log
 
-deploy: ## push → isu1 で checkout・etc 反映・build・再起動・smoke・ログを空に (BRANCH=)
+deploy: ## 今のブランチを push → isu1 で checkout・etc 反映・build・再起動・smoke・ログを空に
+	$(NEED_BRANCH)
 	git push origin $(BRANCH)
 	ssh $(HOST) 'cd $(REPO) && git fetch origin && git checkout -f --detach origin/$(BRANCH)'
 	ssh $(HOST) 'sudo rsync -rl $(REPO)/etc/ /etc/ && sudo systemctl daemon-reload'
@@ -17,7 +20,8 @@ deploy: ## push → isu1 で checkout・etc 反映・build・再起動・smoke�
 	ssh $(HOST) 'sudo truncate -c -s0 /var/log/nginx/access.log /var/log/mysql/slow.log'
 	@echo "deployed $(BRANCH)@$$(git rev-parse --short origin/$(BRANCH))"
 
-deploy-db: ## push → isu1 で etc 反映・DB 再起動 (my.cnf を変えたときだけ)
+deploy-db: ## 今のブランチを push → isu1 で etc 反映・DB 再起動 (my.cnf を変えたときだけ)
+	$(NEED_BRANCH)
 	git push origin $(BRANCH)
 	ssh $(HOST) 'cd $(REPO) && git fetch origin && git checkout -f --detach origin/$(BRANCH)'
 	ssh $(HOST) 'sudo rsync -rl $(REPO)/etc/ /etc/'
