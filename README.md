@@ -56,13 +56,13 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 ## 普段のサイクル
 
 ```
-make deploy                      # main を push → pull → build → restart → smoke → ログ空に
+make deploy                      # 今のブランチを push → pull → build → restart → smoke → ログ空に
 （ポータルでベンチ）
 make analyze SCORE=12345 NOTE="posts に index"   # alp / slow query / スコアを log/ に保存する
 make perf-push                   # 計測用サーバを使うなら、最新の log/ の結果を送る
 ```
 
-- ブランチを指定するときは `make deploy BRANCH=xxx`。省略すると main。良ければ main にマージ、戻すときは `git revert`
+- deploy するのは今 checkout しているブランチ。別のブランチを出すときは `make deploy BRANCH=xxx`。良ければ main にマージ、戻すときは `git revert`
 - デプロイ後にアプリが落ちたら `make log`（journalctl の直近 100 行。`N=300` で行数変更）
 - `make analyze` は `log/<unixtime>-{alp,slow,result}.tsv` に保存する。`SCORE` は必須（fail なら `SCORE=0`）
 - ベンチだけ回し直すときは `make prep`（ログを空にする）
