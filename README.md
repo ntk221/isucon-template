@@ -96,7 +96,8 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
    （`EXEC` は `ssh isu1 systemctl cat <service>` の `ExecStart` のパスをそのまま。`APP_DIR` `BIN` `WEBAPP` はそこから決まる）
 3. `make keys` → 表示された公開鍵を GitHub の Deploy keys に登録
 4. `make install-tools` （alp / pt-query-digest）
-5. ローカルで `make webapp-pull etc-pull` → `du -sh <WEBAPP>` で大きさを確認 → commit/push → `make bootstrap`
+5. ローカルで `make webapp-pull etc-pull` → commit/push → `make bootstrap`
+   （`webapp-pull` は先に dry-run で取り込む量を出し、`LIMIT_MB` (100) を超えるなら取り込まずに止まる。そのときは出てきた大きいディレクトリを `EXCLUDE` に足す）
    （`.gitignore` の配布物の行は `webapp-pull` が `mk/vars.mk` の `EXEC` / `EXCLUDE` から書くので、手では直さない）
 6. `etc/nginx/nginx.conf` の `access_log` を `ltsv` に（`sites-enabled/*` や `conf.d/*` に別の `access_log` があればそちらも）、MySQL の slow log は `etc/mysql/mysql.conf.d/zz-isucon.cnf` で ON → `make deploy deploy-db`
 7. `make perf-allow perf-agent` （CPU を Grafana に出す。時間が無ければ飛ばしてよい）
