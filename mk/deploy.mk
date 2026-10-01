@@ -1,3 +1,4 @@
+# デプロイ
 include mk/vars.mk
 
 BRANCH     ?= main
@@ -5,7 +6,7 @@ N          ?= 100
 
 .PHONY: deploy deploy-db log
 
-deploy:
+deploy: ## push → isu1 で checkout・etc 反映・build・再起動・smoke・ログを空に (BRANCH=)
 	git push origin $(BRANCH)
 	ssh $(HOST) 'cd $(REPO) && git fetch origin && git checkout -f --detach origin/$(BRANCH)'
 	ssh $(HOST) 'sudo rsync -rl $(REPO)/etc/ /etc/ && sudo systemctl daemon-reload'
@@ -16,11 +17,11 @@ deploy:
 	ssh $(HOST) 'sudo truncate -c -s0 /var/log/nginx/access.log /var/log/mysql/slow.log'
 	@echo "deployed $(BRANCH)@$$(git rev-parse --short origin/$(BRANCH))"
 
-deploy-db:
+deploy-db: ## push → isu1 で etc 反映・DB 再起動 (my.cnf を変えたときだけ)
 	git push origin $(BRANCH)
 	ssh $(HOST) 'cd $(REPO) && git fetch origin && git checkout -f --detach origin/$(BRANCH)'
 	ssh $(HOST) 'sudo rsync -rl $(REPO)/etc/ /etc/'
 	ssh $(HOST) 'sudo systemctl restart $(DB_SERVICE)'
 
-log:
+log: ## アプリの journalctl 直近 N 行 (N=100)
 	ssh $(HOST) 'sudo journalctl -u $(SERVICE) -n $(N) --no-pager'
