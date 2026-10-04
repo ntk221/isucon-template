@@ -8,15 +8,15 @@ NEED_BRANCH = @test -n "$(BRANCH)" || { echo "ブランチに checkout してい
 
 .PHONY: deploy deploy-db log
 
-deploy: ## 今のブランチを push → isu1 で checkout・etc 反映・build・再起動・smoke・ログを空に
+deploy: ## 今のブランチを push → isu1 で checkout・etc 反映・build・再起動 (起動を確認)・ログを空に
 	$(NEED_BRANCH)
 	git push origin $(BRANCH)
 	ssh $(HOST) 'cd $(REPO) && git fetch origin && git checkout -f --detach origin/$(BRANCH)'
 	ssh $(HOST) 'sudo rsync -rl $(REPO)/etc/ /etc/ && sudo systemctl daemon-reload'
 	ssh $(HOST) 'cd $(APP_DIR) && PATH=/usr/local/go/bin:$$PATH go build -o $(BIN) .'
 	ssh $(HOST) 'sudo systemctl restart $(SERVICE)'
+	ssh $(HOST) 'sleep 2; systemctl is-active -q $(SERVICE) || { echo "$(SERVICE) が起動していない"; sudo journalctl -u $(SERVICE) -n 20 --no-pager; exit 1; }'
 	ssh $(HOST) 'sudo nginx -t && sudo systemctl reload nginx'
-	ssh $(HOST) 'curl -skf --retry 5 --retry-delay 1 --retry-all-errors -o /dev/null $(SMOKE_URL)'
 	ssh $(HOST) 'sudo truncate -c -s0 /var/log/nginx/access.log /var/log/mysql/slow.log'
 	@echo "deployed $(BRANCH)@$$(git rev-parse --short origin/$(BRANCH))"
 

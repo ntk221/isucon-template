@@ -29,7 +29,7 @@
 | B3 | アプリのディレクトリとビルド方法 | `EXEC` (`APP_DIR` / `BIN` / `WEBAPP` はここから決まる) | `/home/isucon/isucari/webapp/go/isucari` | `systemctl cat <service>` の `ExecStart`。そのディレクトリに go.mod があるか |
 | B4 | 環境変数・接続先の設定 | DB を分けるときに直す場所 | `/home/isucon/env.sh` | `systemctl cat` の `EnvironmentFile` と `Environment=` |
 | B5 | Web サーバと DB の種類・バージョン | 設定ファイルの置き場所と使えるオプション | nginx、MySQL | `nginx -v`、`mysql --version`。MariaDB なら conf は `mariadb.conf.d/` |
-| B6 | 公開ポート、TLS、ホスト名 | smoke の URL。ブラウザ確認の方法 | 80 / 443、証明書は `isucon9.catatsuy.org` | `sudo ss -ltnp`。nginx の `listen` と `server_name`。証明書は `openssl x509 -noout -subject -ext subjectAltName -in <cert>` |
+| B6 | 公開ポート、TLS、ホスト名 | ブラウザ確認の方法 | 80 / 443、証明書は `isucon9.catatsuy.org` | `sudo ss -ltnp`。nginx の `listen` と `server_name`。証明書は `openssl x509 -noout -subject -ext subjectAltName -in <cert>` |
 | B7 | DB の初期化・リカバリ方法 | 壊したときに戻す | `webapp/init.sh` | `find ~ -name 'init*.sh'`、`webapp/sql/`。`POST /initialize` のハンドラが何をしているか読む |
 | B8 | 外部サービスへの依存 | 手元の動作確認に必要。遅さの原因になりうる | payment / shipment サービス | コードで外部 URL や HTTP クライアントを grep。`docs/` を読む |
 

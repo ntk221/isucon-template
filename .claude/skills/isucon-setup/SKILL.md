@@ -5,7 +5,7 @@ description: ISUCON の競技サーバ (練習の過去問でも本番でも) �
 
 # ISUCON 初期セットアップ
 
-ゴール: ローカルで `make deploy` を叩くと、pull → build → restart → smoke が通る。
+ゴール: ローカルで `make deploy` を叩くと、pull → build → restart → 起動の確認 が通る。
 前提:
 - リポジトリのルートは、サーバ上の `REPO` (`mk/vars.mk` の変数。既定値は `/home/isucon`) に置く。`EXEC` がその下に無いと make は止まる。そのときの決め方は手順 3 に書く
 - Makefile は `~/.ssh/config` の Host 名 (isu1/isu2/isu3) しか知らない。`make -n <ターゲット>` で、実際に走るコマンドを実行せずに見られる
@@ -72,7 +72,6 @@ SH
 - **動いている実装のサービス名** (例: `isucari.golang`) と、その `ExecStart` のパス。手順 3 で `SERVICE` と `EXEC` にそのまま入れる。`SERVICE` に `.service` は付けない (`make etc-pull` が `$(SERVICE).service` を取りに行く)
 - **`ExecStart` が `REPO` (既定は `/home/isucon`) の下にあるか**。無ければ手順 3 で `REPO` を決め直す
 - **`ExecStart` のディレクトリに go.mod があるか**。無ければ手順 3 で `APP_DIR` を手で書く
-- **nginx の listen ポートと `server_name`**。smoke の URL を決めるのに使う
 - **巨大ファイル** (画像、初期データの SQL)。git にも rsync にも入れない
   - 使わない言語の依存とビルド成果物 (`rust/target` `node_modules` `perl/local` `php/vendor` など) も入れない。isupipe では `rust/target` だけで 787M あった
 - MySQL か MariaDB か (slow log の conf を置く場所が変わる。手順 5)
@@ -86,7 +85,6 @@ SH
      - `HOST`: 操作するサーバの Host 名。今の `mk/` は 1 台構成用で、全ファイルが同じ 1 台を操作する。2 台以上に分けるなら、ターゲットの中身をホストごとに書き足す
      - `SERVICE`: 動いている参照実装のサービス名 (例: `isucari.golang`)。`.service` は付けない
      - `EXEC`: `systemctl cat <SERVICE>` の `ExecStart` のパス。引数が付いていればパスだけ (例: `/home/isucon/isucari/webapp/go/isucari`)
-     - `SMOKE_URL`: deploy の最後にサーバ上から curl する URL。nginx が 80 なら `http://localhost/`、443 だけなら `https://localhost/`。`server_name` で名前を絞っていて localhost では返らないなら、マニュアルのホスト名にする。`ssh isu1 'curl -sk -o /dev/null -w "%{http_code}\n" <URL>'` が 200 になることを確かめる
      - `DB_SERVICE`: MySQL なら `mysql`、MariaDB なら `mariadb`
      - `EXCLUDE`: 取り込まない巨大ファイル。絶対パスか、配布物のディレクトリ (`WEBAPP`) からの相対 (例: `/webapp/public/upload`) で書く。`/public/upload` のように途中から書くと効かず、GB 単位で落ちてくる。ビルド済みのバイナリ (`EXEC`) は自動で除外される。ここに書いたものは `make webapp-pull` が `.gitignore` にも書くので、サーバ上でも無視される
        - 例 (isupipe を Go で解いたとき): `node_modules /home/isucon/webapp/rust/target /home/isucon/webapp/perl/local /home/isucon/webapp/php/vendor`。`node_modules` のように `/` を含まない名前は、どの深さのものにも当たる

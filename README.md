@@ -54,7 +54,7 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 ## 普段のサイクル
 
 ```
-make deploy                      # 今のブランチを push → pull → build → restart → smoke → ログ空に
+make deploy                      # 今のブランチを push → pull → build → restart (起動を確認) → ログ空に
 （ポータルでベンチ）
 make measure                     # alp / slow query の集計と、今のコミットを log/ に保存する
 ```
