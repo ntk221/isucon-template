@@ -136,6 +136,17 @@ git add -n <WEBAPP> | wc -l   # git に入るファイル数。0 なら配布物
 - **MySQL の slow log を有効にする** (計測の pt-query-digest で使う)。設定はテンプレートの `etc/mysql/mysql.conf.d/zz-isucon.cnf` にある。`make etc-pull` は手元のファイルを消さないので残っているはずだが、あることを確かめる
   - MariaDB のときは `mysql.conf.d/` が読まれないので、`etc/mysql/mariadb.conf.d/` に移す
   - MySQL の設定を変えるときは、`mysqld.cnf` を直さず、このファイルに書き足す。`zz-` で最後に読まれるので、ほかの設定を上書きできる
+- **アプリに `net/http/pprof` の口を開ける** (計測の CPU プロファイルで使う)。`main` パッケージ (`<APP_DIR>/main.go`) に次を足す。`log` と `net/http` の import が無ければそれも足す
+  ```go
+  import _ "net/http/pprof"
+
+  func main() {
+  	go func() { log.Println(http.ListenAndServe("localhost:6060", nil)) }()
+  	// 元の処理
+  ```
+  - `localhost` で待つので、外からは見えない。サーバの `isu-pprof` (`tools/pprof-loop.sh`) がここから 10 秒ずつプロファイルを取り続け、`make measure` が合算する
+  - 6060 が使われていたら (`sudo ss -ltnp`)、別のポートにして `tools/pprof-loop.sh` の `URL` も直す
+  - アプリ本体が `http.DefaultServeMux` を使っている (`http.ListenAndServe(":8000", nil)` など) と、`/debug/pprof/` が本体のポートにも出る。そのときは nginx で `/debug/` を塞ぐ
 - 反映前にサーバで `nginx -t` を通す (一時ディレクトリに etc/nginx を送り、パスを差し替えた conf で `sudo nginx -t -c` を実行)
 - `git ls-files | grep -iE 'pem|ssl|\.env$'` で秘密が入っていないことを確認してから commit / push
 
@@ -157,8 +168,9 @@ make deploy-db    # slow log を有効にする (MySQL 再起動)
 - サーバのバイナリの更新時刻とサービスの `ActiveEnterTimestamp` が deploy 時刻になっている
 - `sudo tail -1 /var/log/nginx/access.log` が ltsv 形式
 - `sudo mysql -N -e 'SELECT @@slow_query_log'` が 1
-- 何回か curl してから `make measure` で alp と slow query が集計される
+- `ssh isu1 'ls /tmp/pprof'` に、10 秒ごとにファイルが増えている。増えないときは `ssh isu1 'systemctl status isu-pprof'` と、アプリの 6060 を見る
+- 何回か curl してから `make measure` で alp と slow query が集計され、`log/<bench>-cpu.pprof` と `log/<bench>-pprof.txt` ができる (手元に `go` が要る)
 
-計測 (`make measure`) は毎回使い、準備はここまでで終わる。
+計測 (`make measure`) は毎回使い、準備はここまでで終わる。ベンチの結果を読むときは `isucon-read-log` の skill を使う。
 
 最後に、結果と Makefile から変えた点を `notes/<日付>-*.md` に残して commit する。

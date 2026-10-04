@@ -9,7 +9,10 @@ isucon/                      ← サーバでは /home/isucon
 │   └── vars.mk              # 問題ごとに変わる値。当日はここを書き換える
 ├── env.sh                   # systemd の EnvironmentFile (make etc-pull で取り込む)
 ├── etc/                     # /etc をパスそのままで写す (make deploy で rsync)
-├── tools/alp.yaml           # alp の集計設定
+├── tools/
+│   ├── alp.yaml             # alp の集計設定
+│   ├── pprof-loop.sh        # サーバで CPU プロファイルを 10 秒ずつ取り続ける (etc/systemd/system/isu-pprof.service が動かす)
+│   └── pprof-text.sh        # 合算した CPU プロファイルを、AI が読めるテキストにする (make measure が手元で呼ぶ)
 └── webapp/                  # 運営配布の webapp をそのまま (make webapp-pull)
 ```
 
@@ -37,7 +40,7 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 |---|---|---|
 | `mk/deploy.mk` | デプロイ | `deploy` `deploy-db` `log` |
 | `mk/setup.mk` | 初回だけ | `keys` `webapp-pull` `etc-pull` `bootstrap` |
-| `mk/measure.mk` | 計測 (ログの集計) | `install-tools` `prep` `measure` |
+| `mk/measure.mk` | 計測 (ログの集計と CPU プロファイル) | `install-tools` `prep` `measure` |
 
 - 問題ごとに変わる値 (`HOST` `SERVICE` `EXEC` など) は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。当日に書き換えるのはこのファイルだけ
 - そのファイルの中でしか使わない値 (ログの場所など) は、各ファイルの冒頭にある
@@ -49,21 +52,26 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 
 ## ローカルに必要なもの
 
-`ssh` `rsync` `git` `curl` `jq`（`make measure` の集計はローカルで jq を使う）。macOS でも動く。
+`ssh` `rsync` `git` `curl` `jq` `go`（`make measure` は、slow query の集計に jq を、CPU プロファイルの合算に `go tool pprof` を、ローカルで使う）。macOS でも動く。
 
 ## 普段のサイクル
 
 ```
-make deploy                      # 今のブランチを push → pull → build → restart (起動を確認) → ログ空に
+make deploy                      # 今のブランチを push → pull → build → restart (起動を確認) → ログと CPU プロファイルを空に
 （ポータルでベンチ）
-make measure                     # alp / slow query の集計と、今のコミットを log/ に保存する
+make measure                     # alp / slow query の集計、CPU プロファイル、今のコミットを log/ に保存する
 ```
 
 - deploy するのは今 checkout しているブランチ。別のブランチを出すときは `make deploy BRANCH=xxx`。良ければ main にマージ、戻すときは `git revert`
 - デプロイ後にアプリが落ちたら `make log`（journalctl の直近 100 行。`N=300` で行数変更）
 - `make measure` は `log/<unixtime>-{alp,slow}.tsv` に集計を、`log/<unixtime>-commit.txt` に今のコミットを保存する。何を変えたかは `git log`、スコアはポータルの履歴で見る
+- CPU プロファイルは、サーバの `isu-pprof` が 10 秒ずつ `/tmp/pprof/` に取り続けている。`make measure` がそれを合算して `log/<unixtime>-cpu.pprof` に、テキストにしたもの (top / 直前との diff / 重い関数のソース) を `log/<unixtime>-pprof.txt` に保存する
+  - アプリが `net/http/pprof` を `localhost:6060` で開けている必要がある (skill の手順 5)
+  - 取り続けている間は、手で `curl .../debug/pprof/profile` しても `cpu profiling already in use` で取れない
+  - 動かすか止めるかは `mk/vars.mk` の `PROF` (on / off) で決まり、`make deploy` が反映する
+- ベンチの結果を AI に読ませるときは、`.claude/skills/isucon-read-log/` の skill を使う (「最新のベンチの log を読んで」)
 - ベンチだけ回し直すときは `make prep`（ログを空にする）
-- **measure する前に deploy / prep を叩くとそのベンチのログは消える**
+- **measure する前に deploy / prep を叩くとそのベンチのログと CPU プロファイルは消える**
 - `make deploy-db` は my.cnf を変えたときだけ（MySQL 再起動は遅い）
 
 ## 前日まで
@@ -92,8 +100,9 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
 5. ローカルで `make webapp-pull etc-pull` → commit/push → `make bootstrap`
    （`webapp-pull` は先に dry-run で取り込む量を出し、`LIMIT_MB` (100) を超えるなら取り込まずに止まる。そのときは出てきた大きいディレクトリを `EXCLUDE` に足す）
    （`.gitignore` の配布物の行は `webapp-pull` が `mk/vars.mk` の `EXEC` / `EXCLUDE` から書くので、手では直さない）
-6. `etc/nginx/nginx.conf` の `access_log` を `ltsv` に（`sites-enabled/*` や `conf.d/*` に別の `access_log` があればそちらも）、MySQL の slow log は `etc/mysql/mysql.conf.d/zz-isucon.cnf` で ON → `make deploy deploy-db`
-7. 初回ベンチ → `make measure`
+6. アプリの `main.go` に `net/http/pprof` の口を開ける (`localhost:6060`。skill の手順 5)
+7. `etc/nginx/nginx.conf` の `access_log` を `ltsv` に（`sites-enabled/*` や `conf.d/*` に別の `access_log` があればそちらも）、MySQL の slow log は `etc/mysql/mysql.conf.d/zz-isucon.cnf` で ON → `make deploy deploy-db`
+8. 初回ベンチ → `make measure`
 
 ## 3 台に分けるとき
 
@@ -103,8 +112,8 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
 
 ## 最終 (終了 30 分前)
 
-1. `etc/nginx/nginx.conf` → `access_log off;`、`etc/mysql/mysql.conf.d/zz-isucon.cnf` → `slow_query_log = 0`
-2. `make deploy deploy-db`
+1. `etc/nginx/nginx.conf` → `access_log off;`、`etc/mysql/mysql.conf.d/zz-isucon.cnf` → `slow_query_log = 0`、`mk/vars.mk` → `PROF := off`
+2. `make deploy deploy-db`（`PROF := off` なら `make deploy` が `isu-pprof` を `disable --now` する。`etc/` からユニットを消すだけでは止まらない）
 3. 使っていない他言語のサービスが `disabled` か、`ssh isu1 systemctl list-unit-files` で見る（`enabled` のままだと、再起動したときに同じポートを取り合う）
 4. 余裕があれば 1 台再起動して動くか
 
