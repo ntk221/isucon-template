@@ -6,7 +6,6 @@ SMOKE_URL   := http://localhost/
 DB_SERVICE  := mysql
 EXCLUDE     := node_modules
 REPO_URL    :=
-GITHUB_USER := ntk221
 
 # 普段は変えない。配布物がホームの外にある問題だけ直す
 REPO        := /home/isucon

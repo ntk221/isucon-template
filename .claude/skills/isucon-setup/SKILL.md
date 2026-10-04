@@ -80,7 +80,7 @@ SH
 ## 3. リポジトリ側を書き換える
 
 1. **`mk/vars.mk` の変数**
-   - Makefile は入口で、ターゲット名を見て `mk/deploy.mk` `mk/setup.mk` `mk/measure.mk` `mk/perf.mk` に振り分けるだけ
+   - Makefile は入口で、ターゲット名を見て `mk/deploy.mk` `mk/setup.mk` `mk/measure.mk` に振り分けるだけ
    - 問題ごとに変わる値は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。書き換えるのはこのファイルの上半分だけ。必須の値が空のままだと、make は案内を出して止まる
    - 書く値 (手順 0 と 2 の結果を写す)
      - `HOST`: 操作するサーバの Host 名。今の `mk/` は 1 台構成用で、全ファイルが同じ 1 台を操作する。2 台以上に分けるなら、ターゲットの中身をホストごとに書き足す
@@ -90,7 +90,7 @@ SH
      - `DB_SERVICE`: MySQL なら `mysql`、MariaDB なら `mariadb`
      - `EXCLUDE`: 取り込まない巨大ファイル。絶対パスか、配布物のディレクトリ (`WEBAPP`) からの相対 (例: `/webapp/public/upload`) で書く。`/public/upload` のように途中から書くと効かず、GB 単位で落ちてくる。ビルド済みのバイナリ (`EXEC`) は自動で除外される。ここに書いたものは `make webapp-pull` が `.gitignore` にも書くので、サーバ上でも無視される
        - 例 (isupipe を Go で解いたとき): `node_modules /home/isucon/webapp/rust/target /home/isucon/webapp/perl/local /home/isucon/webapp/php/vendor`。`node_modules` のように `/` を含まない名前は、どの深さのものにも当たる
-     - `REPO_URL` と `GITHUB_USER`: GitHub のリポジトリと、GitHub のユーザー名
+     - `REPO_URL`: GitHub のリポジトリ (SSH の URL)
    - 自動で決まる値 (`EXEC` から計算する。`make -n deploy` と `make -n webapp-pull` で確かめる)
      - `APP_DIR`: `EXEC` のディレクトリ。ここで `go build` する
      - `BIN`: `EXEC` のファイル名
@@ -107,7 +107,7 @@ SH
    - `:param` を正規表現にする。数字の ID は `\d+`、名前は `[^/]+`。末尾は固定の文字列のまま残す。`[a-z]+$` のように末尾まで正規表現にすると、別のエンドポイントが 1 行に混ざる
    - 前後を `^` と `$` で固定する。alp は uri の一部に当たれば一致扱いにするので、付けないと下の階層まで吸い込む
    - alp は上から順に試し、最初に当たった正規表現の文字列に uri を置き換える。具体的なもの (`^/api/user/me$`) を、一般的なもの (`^/api/user/[^/]+$`) より上に書く
-   - `output` の列の順番は `perf/clickhouse/init.sql` と対応しているので変えない
+   - `output` の列の順番は変えない。前回のベンチと比べるコマンドが列の位置 (5〜7 列目) を使っている
    - `make measure` はサーバ上の `tools/alp.yaml` を使う。効くのは deploy した後のベンチから
 
 ## 4. GitHub とサーバの git
@@ -161,6 +161,6 @@ make deploy-db    # slow log を有効にする (MySQL 再起動)
 - `sudo mysql -N -e 'SELECT @@slow_query_log'` が 1
 - 何回か curl してから `make measure SCORE=0 NOTE="動作確認"` で alp と slow query が集計される
 
-計測 (`make measure`) は毎回使い、準備はここまでで終わる。可視化サーバ (`perf/`) は、使うかどうかをユーザーに確認する。レギュレーションで外部リソースの利用が許されていて、チームで使うと決めたときだけ、README の「前日まで」と `make perf-allow perf-agent` に進む。
+計測 (`make measure`) は毎回使い、準備はここまでで終わる。
 
 最後に、結果と Makefile から変えた点を `notes/<日付>-*.md` に残して commit する。

@@ -1,4 +1,4 @@
-# alp の集計設定。列順は perf/clickhouse/init.sql の isucon.alp と一致させること
+# alp の集計設定。output の列の順番は変えない (Notion の「出力の読み方」と、前回と比べるコマンドが列の位置を使う)
 # matching_groups は当日エンドポイントを見て書き換える (ID を含む URI をまとめる)
 matching_groups:
   - '^/api/[a-z]+/\d+'
