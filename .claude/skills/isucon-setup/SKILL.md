@@ -159,7 +159,7 @@ make deploy-db    # slow log を有効にする (MySQL 再起動)
 - サーバのバイナリの更新時刻とサービスの `ActiveEnterTimestamp` が deploy 時刻になっている
 - `sudo tail -1 /var/log/nginx/access.log` が ltsv 形式
 - `sudo mysql -N -e 'SELECT @@slow_query_log'` が 1
-- 何回か curl してから `make measure SCORE=0 NOTE="動作確認"` で alp と slow query が集計される
+- 何回か curl してから `make measure` で alp と slow query が集計される
 
 計測 (`make measure`) は毎回使い、準備はここまでで終わる。
 

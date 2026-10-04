@@ -56,12 +56,12 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 ```
 make deploy                      # 今のブランチを push → pull → build → restart → smoke → ログ空に
 （ポータルでベンチ）
-make measure SCORE=12345 NOTE="posts に index"   # alp / slow query / スコアを log/ に保存する
+make measure                     # alp / slow query の集計と、今のコミットを log/ に保存する
 ```
 
 - deploy するのは今 checkout しているブランチ。別のブランチを出すときは `make deploy BRANCH=xxx`。良ければ main にマージ、戻すときは `git revert`
 - デプロイ後にアプリが落ちたら `make log`（journalctl の直近 100 行。`N=300` で行数変更）
-- `make measure` は `log/<unixtime>-{alp,slow,result}.tsv` に保存する。`SCORE` は必須（fail なら `SCORE=0`）
+- `make measure` は `log/<unixtime>-{alp,slow}.tsv` に集計を、`log/<unixtime>-commit.txt` に今のコミットを保存する。何を変えたかは `git log`、スコアはポータルの履歴で見る
 - ベンチだけ回し直すときは `make prep`（ログを空にする）
 - **measure する前に deploy / prep を叩くとそのベンチのログは消える**
 - `make deploy-db` は my.cnf を変えたときだけ（MySQL 再起動は遅い）
@@ -93,7 +93,7 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
    （`webapp-pull` は先に dry-run で取り込む量を出し、`LIMIT_MB` (100) を超えるなら取り込まずに止まる。そのときは出てきた大きいディレクトリを `EXCLUDE` に足す）
    （`.gitignore` の配布物の行は `webapp-pull` が `mk/vars.mk` の `EXEC` / `EXCLUDE` から書くので、手では直さない）
 6. `etc/nginx/nginx.conf` の `access_log` を `ltsv` に（`sites-enabled/*` や `conf.d/*` に別の `access_log` があればそちらも）、MySQL の slow log は `etc/mysql/mysql.conf.d/zz-isucon.cnf` で ON → `make deploy deploy-db`
-7. 初回ベンチ → `make measure SCORE=...`
+7. 初回ベンチ → `make measure`
 
 ## 3 台に分けるとき
 
