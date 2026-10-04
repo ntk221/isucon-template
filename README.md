@@ -5,7 +5,7 @@
 ```
 isucon/                      ← サーバでは /home/isucon
 ├── Makefile                 # 入口。ターゲット名を見て mk/ のファイルに振り分ける (make help)
-├── mk/                      # 役割ごとの Makefile。deploy / setup / analyze / perf
+├── mk/                      # 役割ごとの Makefile。deploy / setup / measure / perf
 │   └── vars.mk              # 問題ごとに変わる値。当日はここを書き換える
 ├── env.sh                   # systemd の EnvironmentFile (make etc-pull で取り込む)
 ├── etc/                     # /etc をパスそのままで写す (make deploy で rsync)
@@ -38,11 +38,11 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 |---|---|---|
 | `mk/deploy.mk` | デプロイ | `deploy` `deploy-db` `log` |
 | `mk/setup.mk` | 初回だけ | `keys` `webapp-pull` `etc-pull` `bootstrap` |
-| `mk/analyze.mk` | ログの集計 | `install-tools` `prep` `analyze` |
-| `mk/perf.mk` | 計測用サーバ (使う場合だけ) | `perf-up` `perf-ip` `perf-deploy` `perf-allow-ip` `perf-open` `perf-allow` `perf-agent` `perf-agent-off` `perf-push` `perf-down` |
+| `mk/measure.mk` | 計測 (ログの集計) | `install-tools` `prep` `measure` |
+| `mk/perf.mk` | 可視化サーバ (使う場合だけ) | `perf-up` `perf-ip` `perf-deploy` `perf-allow-ip` `perf-open` `perf-allow` `perf-agent` `perf-agent-off` `perf-push` `perf-down` |
 
 - 問題ごとに変わる値 (`HOST` `SERVICE` `EXEC` など) は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。当日に書き換えるのはこのファイルだけ
-- そのファイルの中でしか使わない値 (ログの場所、計測用サーバの設定など) は、各ファイルの冒頭にある
+- そのファイルの中でしか使わない値 (ログの場所、可視化サーバの設定など) は、各ファイルの冒頭にある
 - 実行時に上書きもできる (`make deploy HOST=isu2`)
 - `make -n <ターゲット>` で、実際に走るコマンドを実行せずに見られる
 - 各ファイルのコマンドは 1 行ずつ実行され、失敗した行で止まる
@@ -51,22 +51,22 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 
 ## ローカルに必要なもの
 
-`ssh` `rsync` `git` `curl` `jq`（`make analyze` の集計はローカルで jq を使う）、perf を使うなら `aws` CLI。macOS でも動く。
+`ssh` `rsync` `git` `curl` `jq`（`make measure` の集計はローカルで jq を使う）、perf を使うなら `aws` CLI。macOS でも動く。
 
 ## 普段のサイクル
 
 ```
 make deploy                      # 今のブランチを push → pull → build → restart → smoke → ログ空に
 （ポータルでベンチ）
-make analyze SCORE=12345 NOTE="posts に index"   # alp / slow query / スコアを log/ に保存する
-make perf-push                   # 計測用サーバを使うなら、最新の log/ の結果を送る
+make measure SCORE=12345 NOTE="posts に index"   # alp / slow query / スコアを log/ に保存する
+make perf-push                   # 可視化サーバを使うなら、最新の log/ の結果を送る
 ```
 
 - deploy するのは今 checkout しているブランチ。別のブランチを出すときは `make deploy BRANCH=xxx`。良ければ main にマージ、戻すときは `git revert`
 - デプロイ後にアプリが落ちたら `make log`（journalctl の直近 100 行。`N=300` で行数変更）
-- `make analyze` は `log/<unixtime>-{alp,slow,result}.tsv` に保存する。`SCORE` は必須（fail なら `SCORE=0`）
+- `make measure` は `log/<unixtime>-{alp,slow,result}.tsv` に保存する。`SCORE` は必須（fail なら `SCORE=0`）
 - ベンチだけ回し直すときは `make prep`（ログを空にする）
-- **analyze する前に deploy / prep を叩くとそのベンチのログは消える**
+- **measure する前に deploy / prep を叩くとそのベンチのログは消える**
 - `make deploy-db` は my.cnf を変えたときだけ（MySQL 再起動は遅い）
 
 ## 前日まで
@@ -75,7 +75,7 @@ make perf-push                   # 計測用サーバを使うなら、最新の
 2. `make perf-up` → 出た IP を `~/.ssh/config` の `Host perf` に書く（`ssh_config.example`）
 3. `make perf-deploy` → `http://<perf>:3000/d/isucon` が開けることを確認
    - SG は `perf-up` を叩いた人の IP しか通していない。他メンバーは `make perf-allow-ip IP=<その人のIP>`（Grafana / ClickHouse / Pyroscope）
-4. 過去問で一度 `deploy → analyze` を通しておく
+4. 過去問で一度 `deploy → measure` を通しておく
 
 ## private-isu で練習するとき (1 台構成)
 
@@ -101,7 +101,7 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
    （`.gitignore` の配布物の行は `webapp-pull` が `mk/vars.mk` の `EXEC` / `EXCLUDE` から書くので、手では直さない）
 6. `etc/nginx/nginx.conf` の `access_log` を `ltsv` に（`sites-enabled/*` や `conf.d/*` に別の `access_log` があればそちらも）、MySQL の slow log は `etc/mysql/mysql.conf.d/zz-isucon.cnf` で ON → `make deploy deploy-db`
 7. `make perf-allow perf-agent` （CPU を Grafana に出す。時間が無ければ飛ばしてよい）
-8. 初回ベンチ → `make analyze SCORE=...`
+8. 初回ベンチ → `make measure SCORE=...`
 
 ## 3 台に分けるとき
 
@@ -129,7 +129,7 @@ if addr := os.Getenv("PYROSCOPE_ADDR"); addr != "" {
 
 1. `etc/nginx/nginx.conf` → `access_log off;`、`etc/mysql/mysql.conf.d/zz-isucon.cnf` → `slow_query_log = 0`、`env.sh` の `PYROSCOPE_ADDR=` を空に
 2. `make deploy deploy-db`
-3. 計測用サーバを使ったなら `make perf-agent-off`
+3. 可視化サーバを使ったなら `make perf-agent-off`
 4. 使っていない他言語のサービスが `disabled` か、`ssh isu1 systemctl list-unit-files` で見る（`enabled` のままだと、再起動したときに同じポートを取り合う）
 5. 余裕があれば 1 台再起動して動くか
 6. 競技後: `make perf-down`（EIP + EC2 を消す。放置すると課金が続く）

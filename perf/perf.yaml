@@ -23,7 +23,7 @@ Resources:
       SecurityGroupIngress:
         - { IpProtocol: tcp, FromPort: 22,   ToPort: 22,   CidrIp: !Ref MyIp }
         - { IpProtocol: tcp, FromPort: 3000, ToPort: 3000, CidrIp: !Ref MyIp }   # Grafana
-        - { IpProtocol: tcp, FromPort: 8123, ToPort: 8123, CidrIp: !Ref MyIp }   # ClickHouse HTTP (make analyze)
+        - { IpProtocol: tcp, FromPort: 8123, ToPort: 8123, CidrIp: !Ref MyIp }   # ClickHouse HTTP (make perf-push)
         - { IpProtocol: tcp, FromPort: 4040, ToPort: 4040, CidrIp: !Ref MyIp }   # Pyroscope
         - { IpProtocol: tcp, FromPort: 4317, ToPort: 4318, CidrIp: !Ref MyIp }   # OTLP
       Tags: [{ Key: Name, Value: isucon-perf }]

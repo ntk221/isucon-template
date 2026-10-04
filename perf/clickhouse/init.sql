@@ -1,4 +1,4 @@
--- make analyze が INSERT する 3 テーブル。bench = ベンチ実行時の unix time (UTC) が JOIN キー
+-- make perf-push が INSERT する 3 テーブル (中身は make measure の結果)。bench = ベンチ実行時の unix time (UTC) が JOIN キー
 CREATE DATABASE IF NOT EXISTS isucon;
 
 CREATE TABLE IF NOT EXISTS isucon.results (

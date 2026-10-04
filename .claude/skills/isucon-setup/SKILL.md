@@ -80,7 +80,7 @@ SH
 ## 3. リポジトリ側を書き換える
 
 1. **`mk/vars.mk` の変数**
-   - Makefile は入口で、ターゲット名を見て `mk/deploy.mk` `mk/setup.mk` `mk/analyze.mk` `mk/perf.mk` に振り分けるだけ
+   - Makefile は入口で、ターゲット名を見て `mk/deploy.mk` `mk/setup.mk` `mk/measure.mk` `mk/perf.mk` に振り分けるだけ
    - 問題ごとに変わる値は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。書き換えるのはこのファイルの上半分だけ。必須の値が空のままだと、make は案内を出して止まる
    - 書く値 (手順 0 と 2 の結果を写す)
      - `HOST`: 操作するサーバの Host 名。今の `mk/` は 1 台構成用で、全ファイルが同じ 1 台を操作する。2 台以上に分けるなら、ターゲットの中身をホストごとに書き足す
@@ -108,7 +108,7 @@ SH
    - 前後を `^` と `$` で固定する。alp は uri の一部に当たれば一致扱いにするので、付けないと下の階層まで吸い込む
    - alp は上から順に試し、最初に当たった正規表現の文字列に uri を置き換える。具体的なもの (`^/api/user/me$`) を、一般的なもの (`^/api/user/[^/]+$`) より上に書く
    - `output` の列の順番は `perf/clickhouse/init.sql` と対応しているので変えない
-   - analyze はサーバ上の `tools/alp.yaml` を使う。効くのは deploy した後のベンチから
+   - `make measure` はサーバ上の `tools/alp.yaml` を使う。効くのは deploy した後のベンチから
 
 ## 4. GitHub とサーバの git
 
@@ -131,11 +131,11 @@ make webapp-pull etc-pull     # 先に dry-run で取り込む量を出す。LIM
 git add -n <WEBAPP> | wc -l   # git に入るファイル数。0 なら配布物が無視されている
 ```
 
-- **nginx の access_log を ltsv にする** (analyze の alp で使う)。`etc/nginx/nginx.conf` で、元の `access_log` の行をコメントにし、`include /etc/nginx/conf.d/*.conf;` の直後に `access_log /var/log/nginx/access.log ltsv;` を足す
+- **nginx の access_log を ltsv にする** (計測の alp で使う)。`etc/nginx/nginx.conf` で、元の `access_log` の行をコメントにし、`include /etc/nginx/conf.d/*.conf;` の直後に `access_log /var/log/nginx/access.log ltsv;` を足す
   - `log_format ltsv` は `etc/nginx/conf.d/ltsv.conf` で定義していて、その include で読まれる。Ubuntu の既定の nginx.conf では元の `access_log` が include より前にあるので、その場で `ltsv` を付けるだけだと `nginx -t` が `unknown log format "ltsv"` で失敗する
   - 元の行を残すと、同じファイルに元の書式の行と ltsv の行が両方書かれる
   - `sites-enabled/` の server ブロックに `access_log` があると、そちらが優先される。あれば、そちらも ltsv にする
-- **MySQL の slow log を有効にする** (analyze の pt-query-digest で使う)。設定はテンプレートの `etc/mysql/mysql.conf.d/zz-isucon.cnf` にある。`make etc-pull` は手元のファイルを消さないので残っているはずだが、あることを確かめる
+- **MySQL の slow log を有効にする** (計測の pt-query-digest で使う)。設定はテンプレートの `etc/mysql/mysql.conf.d/zz-isucon.cnf` にある。`make etc-pull` は手元のファイルを消さないので残っているはずだが、あることを確かめる
   - MariaDB のときは `mysql.conf.d/` が読まれないので、`etc/mysql/mariadb.conf.d/` に移す
   - MySQL の設定を変えるときは、`mysqld.cnf` を直さず、このファイルに書き足す。`zz-` で最後に読まれるので、ほかの設定を上書きできる
 - 反映前にサーバで `nginx -t` を通す (一時ディレクトリに etc/nginx を送り、パスを差し替えた conf で `sudo nginx -t -c` を実行)
@@ -159,8 +159,8 @@ make deploy-db    # slow log を有効にする (MySQL 再起動)
 - サーバのバイナリの更新時刻とサービスの `ActiveEnterTimestamp` が deploy 時刻になっている
 - `sudo tail -1 /var/log/nginx/access.log` が ltsv 形式
 - `sudo mysql -N -e 'SELECT @@slow_query_log'` が 1
-- 何回か curl してから `make analyze SCORE=0 NOTE="動作確認"` で alp と slow query が集計される
+- 何回か curl してから `make measure SCORE=0 NOTE="動作確認"` で alp と slow query が集計される
 
-analyze は毎回使い、準備はここまでで終わる。perf (計測用サーバ) は、使うかどうかをユーザーに確認する。レギュレーションで外部リソースの利用が許されていて、チームで使うと決めたときだけ、README の「前日まで」と `make perf-allow perf-agent` に進む。
+計測 (`make measure`) は毎回使い、準備はここまでで終わる。可視化サーバ (`perf/`) は、使うかどうかをユーザーに確認する。レギュレーションで外部リソースの利用が許されていて、チームで使うと決めたときだけ、README の「前日まで」と `make perf-allow perf-agent` に進む。
 
 最後に、結果と Makefile から変えた点を `notes/<日付>-*.md` に残して commit する。

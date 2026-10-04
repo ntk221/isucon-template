@@ -1,4 +1,4 @@
-# 計測用サーバ (使う場合だけ)
+# 可視化サーバ (使う場合だけ)
 include mk/vars.mk
 
 PERF_HOST   := perf
@@ -19,12 +19,12 @@ NEED_PERF  = @test -n "$(PERF_IP)" || { echo "~/.ssh/config に Host $(PERF_HOST
 
 .PHONY: perf-up perf-ip perf-deploy perf-allow-ip perf-open perf-allow perf-agent perf-agent-off perf-push perf-down
 
-perf-up: ## 計測用サーバを CloudFormation で作る
+perf-up: ## 可視化サーバを CloudFormation で作る
 	aws cloudformation deploy --stack-name $(PERF_STACK) --template-file perf/perf.yaml \
 	  --parameter-overrides GitHubUsername=$(GITHUB_USER) MyIp=$$(curl -s https://checkip.amazonaws.com)/32
 	@echo "次に make perf-ip で IP を確認し、~/.ssh/config の Host $(PERF_HOST) に書く"
 
-perf-ip: ## 計測用サーバの IP を表示
+perf-ip: ## 可視化サーバの IP を表示
 	@aws cloudformation describe-stacks --stack-name $(PERF_STACK) --query 'Stacks[0].Outputs[?OutputKey==`PublicIp`].OutputValue' --output text
 
 perf-deploy: ## perf/ を送って docker compose up
@@ -41,13 +41,13 @@ perf-open: ## Grafana / ClickHouse / Pyroscope の URL を表示
 	@echo "ClickHouse http://$(PERF_IP):8123/play      (isucon / perf/.env の CLICKHOUSE_PASSWORD)"
 	@echo "Pyroscope  http://$(PERF_IP):4040"
 
-perf-allow: ## isu1 から計測用サーバへの送信 (4040 / 4318) を許可
+perf-allow: ## isu1 から可視化サーバへの送信 (4040 / 4318) を許可
 	ip=$$(ssh $(HOST) 'curl -s https://checkip.amazonaws.com') && \
 	  aws ec2 authorize-security-group-ingress --group-id $$($(PERF_SG)) --ip-permissions \
 	    "IpProtocol=tcp,FromPort=4040,ToPort=4040,IpRanges=[{CidrIp=$$ip/32}]" \
 	    "IpProtocol=tcp,FromPort=4318,ToPort=4318,IpRanges=[{CidrIp=$$ip/32}]"
 
-perf-agent: ## isu1 に otelcol を入れて CPU 等を計測用サーバへ送る
+perf-agent: ## isu1 に otelcol を入れて CPU 等を可視化サーバへ送る
 	$(NEED_PERF)
 	ssh $(HOST) 'command -v otelcol-contrib >/dev/null || (curl -sLo /tmp/otelcol.deb https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v$(OTELCOL)/otelcol-contrib_$(OTELCOL)_linux_$$(dpkg --print-architecture).deb && sudo apt-get install -y -qq /tmp/otelcol.deb)'
 	sed 's/{{PERF_IP}}/$(PERF_IP)/g' perf/otelcol/agent.yaml | ssh $(HOST) 'sudo tee /etc/otelcol-contrib/config.yaml >/dev/null'
@@ -58,12 +58,12 @@ perf-agent-off: ## isu1 の otelcol を止める
 
 perf-push: ## 最新 (BENCH=) の log/ の結果を ClickHouse に送る
 	$(NEED_PERF)
-	@test -n "$(BENCH)" || { echo "$(LOG_DIR)/ に analyze の結果が無い"; exit 1; }
+	@test -n "$(BENCH)" || { echo "$(LOG_DIR)/ に make measure の結果が無い"; exit 1; }
 	sed 's/\\/\\\\/g' $(LOG_DIR)/$(BENCH)-alp.tsv | awk -v b=$(BENCH) '{print b "\t" $$0}' | $(call CH_INSERT,alp)
 	awk -v b=$(BENCH) '{print b "\t" $$0}' $(LOG_DIR)/$(BENCH)-slow.tsv | $(call CH_INSERT,slow)
 	awk -v b=$(BENCH) '{print b "\t" $$0}' $(LOG_DIR)/$(BENCH)-result.tsv | $(call CH_INSERT,results)
 	@echo "sent bench=$(BENCH) -> http://$(PERF_IP):3000/d/isucon"
 
-perf-down: ## 計測用サーバを削除
+perf-down: ## 可視化サーバを削除
 	aws cloudformation delete-stack --stack-name $(PERF_STACK)
 	@echo "削除の完了待ち: aws cloudformation wait stack-delete-complete --stack-name $(PERF_STACK)"
