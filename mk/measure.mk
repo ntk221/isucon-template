@@ -16,7 +16,7 @@ install-tools: ## isu1 に alp / pt-query-digest を入れる
 prep: ## isu1 のアクセスログ / slow log / CPU プロファイルを空にする
 	ssh $(HOST) 'sudo truncate -c -s0 $(ACCESS_LOG) $(SLOW_LOG) && sudo rm -f $(PROF_DIR)/*.pprof'
 
-measure: ## alp / slow query の集計、CPU プロファイル、今のコミットを log/ に保存し、直前のベンチとの差を表示
+measure: ## alp / slow query の集計、CPU プロファイル、今のコミットを log/ に保存
 	mkdir -p $(LOG_DIR)
 	ssh $(HOST) 'sudo alp ltsv --file $(ACCESS_LOG) --config $(REPO)/tools/alp.yaml' > $(LOG_DIR)/$(BENCH)-alp.tsv
 	ssh $(HOST) 'sudo pt-query-digest --output json --limit 50 $(SLOW_LOG) 2>/dev/null' \
@@ -29,5 +29,7 @@ measure: ## alp / slow query の集計、CPU プロファイル、今のコミ�
 	else go tool pprof -symbolize=none -proto $(PROF_TMP)/*.pprof > $(LOG_DIR)/$(BENCH)-cpu.pprof && \
 	  tools/pprof-text.sh $(LOG_DIR) $(BENCH) $(REPO) > $(LOG_DIR)/$(BENCH)-pprof.txt; fi
 	rm -rf $(PROF_TMP)
-	@tools/measure-summary.sh $(LOG_DIR) $(BENCH)
-	@echo "saved $(LOG_DIR)/$(BENCH)-*"
+	@echo "== alp"; head -15 $(LOG_DIR)/$(BENCH)-alp.tsv
+	@echo "== slow query"; head -10 $(LOG_DIR)/$(BENCH)-slow.tsv | cut -c1-160
+	@test ! -f $(LOG_DIR)/$(BENCH)-pprof.txt || { echo "== cpu (main. の関数、cum の大きい順)"; awk '/^## top \(cum\)/ {f = 1; next} /^## / {f = 0} f && $$6 ~ /^main\./ {printf "%10s %7s  %s\n", $$4, $$5, $$6}' $(LOG_DIR)/$(BENCH)-pprof.txt | head -10; }
+	@echo "saved $(LOG_DIR)/$(BENCH)-* (commit $$(cat $(LOG_DIR)/$(BENCH)-commit.txt))"

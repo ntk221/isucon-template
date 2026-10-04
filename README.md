@@ -12,8 +12,7 @@ isucon/                      ← サーバでは /home/isucon
 ├── tools/
 │   ├── alp.yaml             # alp の集計設定
 │   ├── pprof-loop.sh        # サーバで CPU プロファイルを 10 秒ずつ取り続ける (etc/systemd/system/isu-pprof.service が動かす)
-│   ├── pprof-text.sh        # 合算した CPU プロファイルを、AI が読めるテキストにする (make measure が手元で呼ぶ)
-│   └── measure-summary.sh   # make measure の最後に、上位の行を直前のベンチとの差つきで表示する
+│   └── pprof-text.sh        # 合算した CPU プロファイルを、AI が読めるテキストにする (make measure が手元で呼ぶ)
 └── webapp/                  # 運営配布の webapp をそのまま (make webapp-pull)
 ```
 
@@ -60,7 +59,7 @@ Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変�
 ```
 make deploy                      # 今のブランチを push → pull → build → restart (起動を確認) → ログと CPU プロファイルを空に
 （ポータルでベンチ）
-make measure                     # alp / slow query の集計、CPU プロファイル、今のコミットを log/ に保存し、直前のベンチとの差を表示する
+make measure                     # alp / slow query の集計、CPU プロファイル、今のコミットを log/ に保存する
 ```
 
 - deploy するのは今 checkout しているブランチ。別のブランチを出すときは `make deploy BRANCH=xxx`。良ければ main にマージ、戻すときは `git revert`
