@@ -8,7 +8,7 @@ description: ISUCON の競技サーバ (練習の過去問でも本番でも) �
 ゴール: ローカルで `make deploy` を叩くと、pull → build → restart → 起動の確認 が通る。
 前提:
 - リポジトリのルートは、サーバ上の `REPO` (`mk/vars.mk` の変数。既定値は `/home/isucon`) に置く。`EXEC` がその下に無いと make は止まる。そのときの決め方は手順 3 に書く
-- Makefile は `~/.ssh/config` の Host 名 (isu1/isu2/isu3) しか知らない。`make -n <ターゲット>` で、実際に走るコマンドを実行せずに見られる
+- Makefile は ssh の設定の Host 名 (isu1/isu2/isu3) しか知らない。ISUCON 用の設定は `~/.ssh/isucon_config` に書き、`~/.ssh/config` から `Include` で読む。`make -n <ターゲット>` で、実際に走るコマンドを実行せずに見られる
 
 各ステップで確認を取り、失敗したら先へ進まない。サーバ側で直接ファイルを編集しない (すべてリポジトリ経由)。
 
@@ -28,18 +28,22 @@ description: ISUCON の競技サーバ (練習の過去問でも本番でも) �
 
 ## 1. SSH で入れるようにする
 
-1. 渡された IP ごとに `~/.ssh/config` に `Host isu1` (2 台目以降 isu2, isu3) を追記する。既にあれば HostName だけ直す。
+1. 渡された IP ごとに、`~/.ssh/isucon_config` に `Host isu1` (2 台目以降 isu2, isu3) を書く。既にあれば HostName だけ直す。ひな形は `ssh_config.example`
    ```
    Host isu1
      HostName <IP>
+   Host isu*
      User <マニュアルのユーザー。練習環境では isucon のことも多い>
      IdentityFile <鍵>
      IdentitiesOnly yes
+     StrictHostKeyChecking accept-new
      ServerAliveInterval 30
      ControlMaster auto
      ControlPath ~/.ssh/cm-%r@%h:%p
      ControlPersist 10m
    ```
+   - `~/.ssh/config` の先頭 (どの Host ブロックよりも前) に `Include ~/.ssh/isucon_config` があるか見る。なければ、ユーザーに確認してから先頭に足す。Host ブロックの中や後ろに書くと、その Host に当たったときしか読まれない
+   - `ssh -G isu1 | grep -E '^(hostname|user) '` で、設定が読まれているかを確かめられる
 
 2. `ssh -o BatchMode=yes isu1 hostname` で確認。`Permission denied (publickey)` なら:
    - `ssh -v` で提示した鍵を確認する。**`gh` のログインは HTTPS トークンで、SSH の鍵にはならない**

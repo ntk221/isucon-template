@@ -1,17 +1,18 @@
-# ~/.ssh/config に追記。Makefile は isu1/isu2/isu3 の Host 名だけを見る
+# ISUCON 用の ssh の設定。~/.ssh/isucon_config に置き、~/.ssh/config の先頭 (どの Host ブロックよりも前) に次の 1 行を書く
+#   Include ~/.ssh/isucon_config
+# Host ブロックの中や後ろに Include を書くと、その Host に当たったときしか読まれない
+# Makefile は isu1/isu2/isu3 の Host 名だけを見る。サーバが変わったら HostName だけ直す
 Host isu1
   HostName 203.0.113.11
-  User isucon
 Host isu2
   HostName 203.0.113.12
-  User isucon
 Host isu3
   HostName 203.0.113.13
-  User isucon
 Host isu*
-  StrictHostKeyChecking no
-  UserKnownHostsFile /dev/null
-  LogLevel quiet
+  User isucon
+  IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
   ServerAliveInterval 30
   ControlMaster auto
   ControlPath ~/.ssh/cm-%r@%h:%p

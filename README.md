@@ -28,8 +28,11 @@ gh repo create <owner>/<repo> --template ntk221/isucon-template --private --clon
 
 ## ホスト名 (isu1 / isu2 / isu3)
 
-`mk/vars.mk` の `HOST` に入っているのは `~/.ssh/config` の **Host 別名**で、IP や鍵は書かない。
-Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変わっても直すのは `~/.ssh/config` の `HostName` だけ。
+`mk/vars.mk` の `HOST` に入っているのは ssh の設定の **Host 別名**で、IP や鍵は書かない。
+Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変わっても直すのは ssh の設定の `HostName` だけ。
+
+ISUCON 用の ssh の設定は、普段の `~/.ssh/config` とは別の `~/.ssh/isucon_config` に書く (中身は `ssh_config.example`)。
+`~/.ssh/config` には、先頭 (どの Host ブロックよりも前) に `Include ~/.ssh/isucon_config` の 1 行だけを足す。Host ブロックの中や後ろに書くと、その Host に当たったときしか読まれない。
 本番は 3 台 (isu1〜3) に役割を振り分けるが、今の `mk/` は 1 台構成用。分けるときは「3 台に分けるとき」を見る。
 
 ## Makefile の構成
@@ -92,7 +95,7 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
 
 ## 当日 (最初の 30 分)
 
-1. `~/.ssh/config` に isu1/isu2/isu3 を書く（本番は 3 台。1 台しかなければ全部 isu1 でよい）
+1. `~/.ssh/isucon_config` に isu1/isu2/isu3 を書く（本番は 3 台。1 台しかなければ全部 isu1 でよい。書き方は `ssh_config.example`）
 2. 当日マニュアルの「参考実装の切り替え方法」から service 名を確認して、`mk/vars.mk` の `SERVICE` と `EXEC` を書き換える
    （`EXEC` は `ssh isu1 systemctl cat <service>` の `ExecStart` のパスをそのまま。`APP_DIR` `BIN` `WEBAPP` はそこから決まる）
 3. `make keys` → 表示された公開鍵を GitHub の Deploy keys に登録
