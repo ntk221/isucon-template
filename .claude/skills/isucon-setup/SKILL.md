@@ -173,7 +173,7 @@ make deploy-db    # slow log を有効にする (MySQL 再起動)
 - `sudo tail -1 /var/log/nginx/access.log` が ltsv 形式
 - `sudo mysql -N -e 'SELECT @@slow_query_log'` が 1
 - `ssh isu1 'ls /tmp/pprof'` に、10 秒ごとにファイルが増えている。増えないときは `ssh isu1 'systemctl status isu-pprof'` と、アプリの 6060 を見る
-- 何回か curl してから `make measure` で alp と slow query が集計され、`log/<bench>-cpu.pprof` と `log/<bench>-pprof.txt` ができる (手元に `go` が要る)
+- 何回か curl してから `make measure` で alp と slow query が集計され、`log/<日時>/` に `cpu.pprof` と `pprof.txt` もできる (手元に `go` が要る)
 
 計測 (`make measure`) は毎回使い、準備はここまでで終わる。ベンチの結果を読むときは `isucon-read-log` の skill を使う。
 

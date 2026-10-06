@@ -5,19 +5,19 @@ description: make measure が log/ に残したベンチの結果 (alp / slow qu
 
 # ベンチの結果を読む
 
-`make measure` は、ベンチ 1 回分を `log/<bench>-*` に残す。`<bench>` は `make measure` を叩いた時刻 (unix time) で、ファイルを結び付けるキーになる。
+`make measure` は、ベンチ 1 回分を `log/<bench>/` に残す。`<bench>` は `make measure` を叩いた日時 (`20261006-123712` の形) で、ポータルの履歴の時刻と突き合わせられる。
 
 | ファイル | 中身 |
 |---|---|
-| `log/<bench>-alp.tsv` | エンドポイントごとの集計。列は 回数、2xx、4xx、5xx、method、uri、合計、平均、p90、最大 (秒)。合計の大きい順 |
-| `log/<bench>-slow.tsv` | クエリの形ごとの集計。列は クエリの形、回数、合計、平均、Rows_examined の合計。合計の大きい順に 50 件 |
-| `log/<bench>-pprof.txt` | CPU プロファイル。top (flat)、top (cum)、直前のベンチとの diff、`main.` の重い関数のソース |
-| `log/<bench>-commit.txt` | 計測したときのコミット |
-| `log/<bench>-cpu.pprof` | 合算した CPU プロファイル (バイナリ)。`pprof.txt` に無い見方をしたいときだけ `go tool pprof -top -focus=<関数> ...` などで開く |
+| `log/<bench>/alp.tsv` | エンドポイントごとの集計。列は 回数、2xx、4xx、5xx、method、uri、合計、平均、p90、最大 (秒)。合計の大きい順 |
+| `log/<bench>/slow.tsv` | クエリの形ごとの集計。列は クエリの形、回数、合計、平均、Rows_examined の合計。合計の大きい順に 50 件 |
+| `log/<bench>/pprof.txt` | CPU プロファイル。top (flat)、top (cum)、直前のベンチとの diff、`main.` の重い関数のソース |
+| `log/<bench>/commit.txt` | 計測したときのコミット |
+| `log/<bench>/cpu.pprof` | 合算した CPU プロファイル (バイナリ)。`pprof.txt` に無い見方をしたいときだけ `go tool pprof -top -focus=<関数> ...` などで開く |
 
 ## 手順
 
-1. **どのベンチを読むか決める。** 指定が無ければ、`ls log/*-commit.txt | sort | tail -2` の新しい方が今回、古い方が直前。`pprof.txt` は無いことがある (アプリが pprof の口を開けていない、または終了前に外した)
+1. **どのベンチを読むか決める。** 指定が無ければ、`ls -d log/*/ | sort | tail -2` の新しい方が今回、古い方が直前。`pprof.txt` は無いことがある (アプリが pprof の口を開けていない、または終了前に外した)
 2. **何を変えたかを見る。** `git log --oneline <直前のコミット>..<今回のコミット>` で見る。スコアは log に無いので、必要ならユーザーに聞く (ポータルの履歴にある)
 3. **alp を読む。**
    - 合計の大きい行から見る。合計は回数 × 平均なので、回数が多いのか、1 回が遅いのかを分けて書く
@@ -25,7 +25,7 @@ description: make measure が log/ に残したベンチの結果 (alp / slow qu
    - 回数が少なくて ID やユーザー名の入った uri が並んでいたら、`tools/alp.yaml` の `matching_groups` のまとめ忘れ。ユーザーに伝える
    - 直前との差は次で出す。出力は「差、今回の合計、method と uri」で、マイナスなら速くなった。`matching_groups` を変えた直後は比べられない
      ```bash
-     awk -F'\t' 'NR==FNR {p[$5" "$6]=$7; next} {k=$5" "$6; printf "%+8.2f\t%8.2f\t%s\n", $7-p[k], $7, k}' log/<直前>-alp.tsv log/<今回>-alp.tsv | sort -n
+     awk -F'\t' 'NR==FNR {p[$5" "$6]=$7; next} {k=$5" "$6; printf "%+8.2f\t%8.2f\t%s\n", $7-p[k], $7, k}' log/<直前>/alp.tsv log/<今回>/alp.tsv | sort -n
      ```
 4. **slow を読む。**
    - 合計の大きいクエリから見る

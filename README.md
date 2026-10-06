@@ -62,13 +62,13 @@ ISUCON 用の ssh の設定は、普段の `~/.ssh/config` とは別の `~/.ssh/
 ```
 make deploy                      # 今のブランチを push → pull → build → restart (起動を確認) → ログと CPU プロファイルを空に
 （ポータルでベンチ）
-make measure                     # alp / slow query の集計、CPU プロファイル、今のコミットを log/ に保存する
+make measure                     # alp / slow query の集計、CPU プロファイル、今のコミットを log/<日時>/ に保存する
 ```
 
 - deploy するのは今 checkout しているブランチ。別のブランチを出すときは `make deploy BRANCH=xxx`。良ければ main にマージ、戻すときは `git revert`
 - デプロイ後にアプリが落ちたら `make log`（journalctl の直近 100 行。`N=300` で行数変更）
-- `make measure` は `log/<unixtime>-{alp,slow}.tsv` に集計を、`log/<unixtime>-commit.txt` に今のコミットを保存する。何を変えたかは `git log`、スコアはポータルの履歴で見る
-- CPU プロファイルは、サーバの `isu-pprof` が 10 秒ずつ `/tmp/pprof/` に取り続けている。`make measure` がそれを合算して `log/<unixtime>-cpu.pprof` に、テキストにしたもの (top / 直前との diff / 重い関数のソース) を `log/<unixtime>-pprof.txt` に保存する
+- `make measure` は、ベンチ 1 回分を `log/<日時>/` (例: `log/20261006-123712/`) に保存する。集計は `alp.tsv` と `slow.tsv`、今のコミットは `commit.txt`。何を変えたかは `git log`、スコアはポータルの履歴で見る
+- CPU プロファイルは、サーバの `isu-pprof` が 10 秒ずつ `/tmp/pprof/` に取り続けている。`make measure` がそれを合算して 同じフォルダの `cpu.pprof` に、テキストにしたもの (top / 直前との diff / 重い関数のソース) を `pprof.txt` に保存する
   - アプリが `net/http/pprof` を `localhost:6060` で開けている必要がある (skill の手順 5)
   - 取り続けている間は、手で `curl .../debug/pprof/profile` しても `cpu profiling already in use` で取れない
   - `make deploy` と `make prep` は `isu-pprof` を起動し直す。起動し直すと、溜まったファイルは消える

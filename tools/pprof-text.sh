@@ -1,18 +1,18 @@
 #!/bin/bash
-# log/<bench>-cpu.pprof を、AI が読めるテキストにする。make measure が手元のリポジトリのルートで呼ぶ
+# log/<bench>/cpu.pprof を、AI が読めるテキストにする。make measure が手元のリポジトリのルートで呼ぶ
 # 使い方: tools/pprof-text.sh <LOG_DIR> <bench> <REPO>
 set -eu
 LOG=$1 BENCH=$2 REPO=$3
-CUR=$LOG/$BENCH-cpu.pprof
+CUR=$LOG/$BENCH/cpu.pprof
 # 直前のベンチ (CPU プロファイルがあるもののうち、今回の 1 つ前)
-PREV=$(ls "$LOG"/*-cpu.pprof | sort | grep -vxF "$CUR" | tail -1 || true)
-PB=$(basename "${PREV:-none}" -cpu.pprof)
+PREV=$(ls "$LOG"/*/cpu.pprof | sort | grep -vxF "$CUR" | tail -1 || true)
+PB=$(basename "$(dirname "${PREV:-none/none}")")
 # ソースはサーバのパス (REPO の下) で記録されているので、手元のリポジトリ (.) に読み替える
 PPROF="go tool pprof -symbolize=none -trim_path=$REPO -source_path=."
 LIST_N=3
 
-commit() { cat "$LOG/$1-commit.txt" 2>/dev/null || echo '?'; }
-reqs()   { awk -F'\t' '{s += $1} END {print s + 0}' "$LOG/$1-alp.tsv" 2>/dev/null || echo '?'; }
+commit() { cat "$LOG/$1/commit.txt" 2>/dev/null || echo '?'; }
+reqs()   { awk -F'\t' '{s += $1} END {print s + 0}' "$LOG/$1/alp.tsv" 2>/dev/null || echo '?'; }
 
 echo "# bench $BENCH  commit $(commit "$BENCH")  requests $(reqs "$BENCH") (alp の回数の合計)"
 if [ -n "$PREV" ]; then echo "# prev  $PB  commit $(commit "$PB")  requests $(reqs "$PB")"; fi
