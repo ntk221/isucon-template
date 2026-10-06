@@ -71,7 +71,8 @@ make measure                     # alp / slow query の集計、CPU プロファ
 - CPU プロファイルは、サーバの `isu-pprof` が 10 秒ずつ `/tmp/pprof/` に取り続けている。`make measure` がそれを合算して `log/<unixtime>-cpu.pprof` に、テキストにしたもの (top / 直前との diff / 重い関数のソース) を `log/<unixtime>-pprof.txt` に保存する
   - アプリが `net/http/pprof` を `localhost:6060` で開けている必要がある (skill の手順 5)
   - 取り続けている間は、手で `curl .../debug/pprof/profile` しても `cpu profiling already in use` で取れない
-  - 動かすか止めるかは `mk/vars.mk` の `PROF` (on / off) で決まり、`make deploy` が反映する
+  - `make deploy` と `make prep` は `isu-pprof` を起動し直す。起動し直すと、溜まったファイルは消える
+  - 止めるときは、`main.go` から pprof の口を外して deploy する。`isu-pprof` は動いたままだが、取れずに 10 秒ごとに待つだけになる
 - ベンチの結果を AI に読ませるときは、`.claude/skills/isucon-read-log/` の skill を使う (「最新のベンチの log を読んで」)
 - ベンチだけ回し直すときは `make prep`（ログを空にする）
 - **measure する前に deploy / prep を叩くとそのベンチのログと CPU プロファイルは消える**
@@ -132,8 +133,8 @@ DB_HOST     := isu3        # MySQL (deploy-db / slow log)
 
 ## 最終 (終了 30 分前)
 
-1. `etc/nginx/nginx.conf` → `access_log off;`、`etc/mysql/mysql.conf.d/zz-isucon.cnf` → `slow_query_log = 0`、`mk/vars.mk` → `PROF := off`
-2. `make deploy deploy-db`（`PROF := off` なら `make deploy` が `isu-pprof` を `disable --now` する。`etc/` からユニットを消すだけでは止まらない）
+1. `etc/nginx/nginx.conf` → `access_log off;`、`etc/mysql/mysql.conf.d/zz-isucon.cnf` → `slow_query_log = 0`、`main.go` → pprof の口 (`net/http/pprof` と 6060 の行) を外す
+2. `make deploy deploy-db`
 3. 使っていない他言語のサービスや、その台で使わないサービスが `disabled` か、台ごとに `systemctl list-unit-files` で見る（`enabled` のままだと、再起動したときに同じポートを取り合う）
 4. 余裕があれば 1 台再起動して動くか
 

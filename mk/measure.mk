@@ -4,6 +4,8 @@ include mk/vars.mk
 LOG_DIR    := log
 BENCH      := $(shell date +%s)
 PROF_TMP   := $(LOG_DIR)/.pprof
+# CPU プロファイルの置き場所は、tools/pprof-loop.sh の DIR だけで決める
+PROF_DIR   := $(shell sed -n 's/^DIR=//p' tools/pprof-loop.sh)
 
 .PHONY: install-tools prep measure
 
@@ -14,7 +16,7 @@ install-tools: ## nginx の台に alp を、DB の台に pt-query-digest を入�
 prep: ## アクセスログ / slow log / CPU プロファイルを空にする
 	ssh $(WEB_HOST) 'sudo truncate -c -s0 $(ACCESS_LOG)'
 	ssh $(DB_HOST) 'sudo truncate -c -s0 $(SLOW_LOG)'
-	for h in $(APP_HOSTS); do ssh $$h 'sudo rm -f $(PROF_DIR)/*.pprof'; done
+	for h in $(APP_HOSTS); do ssh $$h 'sudo systemctl restart isu-pprof' || exit 1; done
 
 measure: ## alp / slow query の集計、CPU プロファイル、今のコミットを log/ に保存
 	mkdir -p $(LOG_DIR)
@@ -24,7 +26,7 @@ measure: ## alp / slow query の集計、CPU プロファイル、今のコミ�
 	git rev-parse --short HEAD > $(LOG_DIR)/$(BENCH)-commit.txt
 	rm -rf $(PROF_TMP) && mkdir -p $(PROF_TMP)
 	for h in $(APP_HOSTS); do mkdir -p $(PROF_TMP)/$$h && rsync -r --include '*.pprof' --exclude '*' $$h:$(PROF_DIR)/ $(PROF_TMP)/$$h/ 2>/dev/null; done; true
-	@if ! ls $(PROF_TMP)/*/*.pprof >/dev/null 2>&1; then echo "CPU プロファイルがない (PROF が off か、アプリが pprof の口を開けていない)"; \
+	@if ! ls $(PROF_TMP)/*/*.pprof >/dev/null 2>&1; then echo "CPU プロファイルがない (アプリが pprof の口を開けていない)"; \
 	elif ! command -v go >/dev/null; then echo "手元に go がないので、CPU プロファイルを合算できない"; \
 	else go tool pprof -symbolize=none -proto $(PROF_TMP)/*/*.pprof > $(LOG_DIR)/$(BENCH)-cpu.pprof && \
 	  tools/pprof-text.sh $(LOG_DIR) $(BENCH) $(REPO) > $(LOG_DIR)/$(BENCH)-pprof.txt; fi

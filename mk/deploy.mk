@@ -5,9 +5,6 @@ include mk/vars.mk
 BRANCH     ?= $(shell git branch --show-current)
 N          ?= 100
 NEED_BRANCH = @test -n "$(BRANCH)" || { echo "ブランチに checkout していない (detached HEAD)。BRANCH=xxx を指定する"; exit 1; }
-# CPU プロファイルを取る台と、止める台
-PROF_ON    := $(if $(filter on,$(PROF)),$(APP_HOSTS))
-PROF_OFF   := $(filter-out $(PROF_ON),$(HOSTS))
 
 .PHONY: deploy deploy-db log
 
@@ -21,8 +18,7 @@ deploy: ## 今のブランチを push → 全部の台で checkout・etc 反映 
 	ssh $(WEB_HOST) 'sudo nginx -t && sudo systemctl reload nginx'
 	ssh $(WEB_HOST) 'sudo truncate -c -s0 $(ACCESS_LOG)'
 	ssh $(DB_HOST) 'sudo truncate -c -s0 $(SLOW_LOG)'
-	$(if $(PROF_ON),for h in $(PROF_ON); do ssh $$h 'sudo rm -rf $(PROF_DIR) && sudo systemctl enable -q isu-pprof && sudo systemctl restart isu-pprof' || exit 1; done)
-	$(if $(PROF_OFF),for h in $(PROF_OFF); do ssh $$h 'sudo systemctl disable -q --now isu-pprof; sudo rm -rf $(PROF_DIR)'; done)
+	for h in $(APP_HOSTS); do ssh $$h 'sudo systemctl enable -q isu-pprof && sudo systemctl restart isu-pprof' || exit 1; done
 	@echo "deployed $(BRANCH)@$$(git rev-parse --short origin/$(BRANCH))"
 
 deploy-db: ## 今のブランチを push → DB の台で checkout・etc 反映・DB 再起動 (my.cnf を変えたときだけ)

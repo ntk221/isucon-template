@@ -13,15 +13,10 @@ WEB_HOST    := isu1
 # MySQL (deploy-db / slow log)
 DB_HOST     := isu1
 
-# CPU プロファイルを取り続けるか (on / off)。make deploy が見て、isu-pprof を起動・停止する。終了 30 分前に off にする
-PROF        := on
-
 # 普段は変えない。配布物がホームの外にある問題だけ直す
 REPO        := /home/isucon
 ACCESS_LOG  := /var/log/nginx/access.log
 SLOW_LOG    := /var/log/mysql/slow.log
-# CPU プロファイルの置き場所。tools/pprof-loop.sh の DIR と同じにする
-PROF_DIR    := /tmp/pprof
 
 REQUIRED := SERVICE EXEC DB_SERVICE REPO_URL APP_HOSTS WEB_HOST DB_HOST REPO
 $(foreach v,$(REQUIRED),$(if $(strip $($(v))),,$(error mk/vars.mk の $(v) が空。「サーバーを調べる」の結果で埋める)))

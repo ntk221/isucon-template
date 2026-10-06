@@ -1,4 +1,4 @@
-# CPU プロファイルを取り続ける (tools/pprof-loop.sh)。起動と停止は make deploy が mk/vars.mk の PROF を見て行う
+# CPU プロファイルを取り続ける (tools/pprof-loop.sh)。make deploy がアプリの台で有効にして起動し直す
 # ExecStart のパスは REPO (/home/isucon) の下。REPO を変えたらここも直す
 [Unit]
 Description=isucon: CPU プロファイルを 10 秒ずつ取り続ける
