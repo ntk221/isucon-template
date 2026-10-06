@@ -86,7 +86,7 @@ SH
    - Makefile は入口で、ターゲット名を見て `mk/deploy.mk` `mk/setup.mk` `mk/measure.mk` に振り分けるだけ
    - 問題ごとに変わる値は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。書き換えるのはこのファイルの上半分だけ。必須の値が空のままだと、make は案内を出して止まる
    - 書く値 (手順 0 と 2 の結果を写す)
-     - `HOST`: 操作するサーバの Host 名。今の `mk/` は 1 台構成用で、全ファイルが同じ 1 台を操作する。2 台以上に分けるなら、ターゲットの中身をホストごとに書き足す
+     - `APP_HOSTS` / `WEB_HOST` / `DB_HOST`: 台の役割 (ssh の設定の Host 名)。セットアップの間は全部 isu1 のままにする。台を分けるのは、初回 deploy まで通った後 (README の「台を分けるとき」)
      - `SERVICE`: 動いている参照実装のサービス名 (例: `isucari.golang`)。`.service` は付けない
      - `EXEC`: `systemctl cat <SERVICE>` の `ExecStart` のパス。引数が付いていればパスだけ (例: `/home/isucon/isucari/webapp/go/isucari`)
      - `DB_SERVICE`: MySQL なら `mysql`、MariaDB なら `mariadb`

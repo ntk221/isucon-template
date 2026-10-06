@@ -1,32 +1,32 @@
 # 計測 (alp / pt-query-digest で集計し、CPU プロファイルを合算して log/ に保存)
 include mk/vars.mk
 
-ACCESS_LOG := /var/log/nginx/access.log
-SLOW_LOG   := /var/log/mysql/slow.log
 LOG_DIR    := log
 BENCH      := $(shell date +%s)
 PROF_TMP   := $(LOG_DIR)/.pprof
 
 .PHONY: install-tools prep measure
 
-install-tools: ## isu1 に alp / pt-query-digest を入れる
-	ssh $(HOST) 'command -v alp >/dev/null || (curl -sL https://github.com/tkuchiki/alp/releases/latest/download/alp_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp alp && sudo install /tmp/alp /usr/local/bin/alp)'
-	ssh $(HOST) 'command -v pt-query-digest >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq percona-toolkit)'
+install-tools: ## nginx の台に alp を、DB の台に pt-query-digest を入れる
+	ssh $(WEB_HOST) 'command -v alp >/dev/null || (curl -sL https://github.com/tkuchiki/alp/releases/latest/download/alp_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp alp && sudo install /tmp/alp /usr/local/bin/alp)'
+	ssh $(DB_HOST) 'command -v pt-query-digest >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq percona-toolkit)'
 
-prep: ## isu1 のアクセスログ / slow log / CPU プロファイルを空にする
-	ssh $(HOST) 'sudo truncate -c -s0 $(ACCESS_LOG) $(SLOW_LOG) && sudo rm -f $(PROF_DIR)/*.pprof'
+prep: ## アクセスログ / slow log / CPU プロファイルを空にする
+	ssh $(WEB_HOST) 'sudo truncate -c -s0 $(ACCESS_LOG)'
+	ssh $(DB_HOST) 'sudo truncate -c -s0 $(SLOW_LOG)'
+	for h in $(APP_HOSTS); do ssh $$h 'sudo rm -f $(PROF_DIR)/*.pprof'; done
 
 measure: ## alp / slow query の集計、CPU プロファイル、今のコミットを log/ に保存
 	mkdir -p $(LOG_DIR)
-	ssh $(HOST) 'sudo alp ltsv --file $(ACCESS_LOG) --config $(REPO)/tools/alp.yaml' > $(LOG_DIR)/$(BENCH)-alp.tsv
-	ssh $(HOST) 'sudo pt-query-digest --output json --limit 50 $(SLOW_LOG) 2>/dev/null' \
+	ssh $(WEB_HOST) 'sudo alp ltsv --file $(ACCESS_LOG) --config $(REPO)/tools/alp.yaml' > $(LOG_DIR)/$(BENCH)-alp.tsv
+	ssh $(DB_HOST) 'sudo pt-query-digest --output json --limit 50 $(SLOW_LOG) 2>/dev/null' \
 	  | jq -r '.classes[] | [.fingerprint, .query_count, .metrics.Query_time.sum, .metrics.Query_time.avg, .metrics.Rows_examined.sum] | @tsv' > $(LOG_DIR)/$(BENCH)-slow.tsv
 	git rev-parse --short HEAD > $(LOG_DIR)/$(BENCH)-commit.txt
 	rm -rf $(PROF_TMP) && mkdir -p $(PROF_TMP)
-	rsync -r --include '*.pprof' --exclude '*' $(HOST):$(PROF_DIR)/ $(PROF_TMP)/ 2>/dev/null || true
-	@if ! ls $(PROF_TMP)/*.pprof >/dev/null 2>&1; then echo "CPU プロファイルがない (PROF が off か、アプリが pprof の口を開けていない)"; \
+	for h in $(APP_HOSTS); do mkdir -p $(PROF_TMP)/$$h && rsync -r --include '*.pprof' --exclude '*' $$h:$(PROF_DIR)/ $(PROF_TMP)/$$h/ 2>/dev/null; done; true
+	@if ! ls $(PROF_TMP)/*/*.pprof >/dev/null 2>&1; then echo "CPU プロファイルがない (PROF が off か、アプリが pprof の口を開けていない)"; \
 	elif ! command -v go >/dev/null; then echo "手元に go がないので、CPU プロファイルを合算できない"; \
-	else go tool pprof -symbolize=none -proto $(PROF_TMP)/*.pprof > $(LOG_DIR)/$(BENCH)-cpu.pprof && \
+	else go tool pprof -symbolize=none -proto $(PROF_TMP)/*/*.pprof > $(LOG_DIR)/$(BENCH)-cpu.pprof && \
 	  tools/pprof-text.sh $(LOG_DIR) $(BENCH) $(REPO) > $(LOG_DIR)/$(BENCH)-pprof.txt; fi
 	rm -rf $(PROF_TMP)
 	@echo "== alp"; head -15 $(LOG_DIR)/$(BENCH)-alp.tsv

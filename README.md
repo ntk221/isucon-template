@@ -28,12 +28,12 @@ gh repo create <owner>/<repo> --template ntk221/isucon-template --private --clon
 
 ## ホスト名 (isu1 / isu2 / isu3)
 
-`mk/vars.mk` の `HOST` に入っているのは ssh の設定の **Host 別名**で、IP や鍵は書かない。
+`mk/vars.mk` の `APP_HOSTS` `WEB_HOST` `DB_HOST` に入っているのは ssh の設定の **Host 別名**で、IP や鍵は書かない。
 Makefile は `ssh isu1 '...'` を呼ぶだけなので、サーバの IP が変わっても直すのは ssh の設定の `HostName` だけ。
 
 ISUCON 用の ssh の設定は、普段の `~/.ssh/config` とは別の `~/.ssh/isucon_config` に書く (中身は `ssh_config.example`)。
 `~/.ssh/config` には、先頭 (どの Host ブロックよりも前) に `Include ~/.ssh/isucon_config` の 1 行だけを足す。Host ブロックの中や後ろに書くと、その Host に当たったときしか読まれない。
-本番は 3 台 (isu1〜3) に役割を振り分けるが、今の `mk/` は 1 台構成用。分けるときは「3 台に分けるとき」を見る。
+本番は 3 台 (isu1〜3) に役割を振り分ける。どの台が何をするかは `mk/vars.mk` の 3 行で決まり、1 台のうちは全部 isu1。分けるときは「台を分けるとき」を見る。
 
 ## Makefile の構成
 
@@ -45,9 +45,9 @@ ISUCON 用の ssh の設定は、普段の `~/.ssh/config` とは別の `~/.ssh/
 | `mk/setup.mk` | 初回だけ | `keys` `webapp-pull` `etc-pull` `bootstrap` |
 | `mk/measure.mk` | 計測 (ログの集計と CPU プロファイル) | `install-tools` `prep` `measure` |
 
-- 問題ごとに変わる値 (`HOST` `SERVICE` `EXEC` など) は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。当日に書き換えるのはこのファイルだけ
+- 問題ごとに変わる値 (`SERVICE` `EXEC` と、台の役割など) は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。当日に書き換えるのはこのファイルだけ
 - そのファイルの中でしか使わない値 (ログの場所など) は、各ファイルの冒頭にある
-- 実行時に上書きもできる (`make deploy HOST=isu2`)
+- 実行時に上書きもできる (`make deploy BRANCH=xxx`)
 - `make -n <ターゲット>` で、実際に走るコマンドを実行せずに見られる
 - 各ファイルのコマンドは 1 行ずつ実行され、失敗した行で止まる
 
@@ -107,17 +107,34 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
 7. `etc/nginx/nginx.conf` の `access_log` を `ltsv` に（`sites-enabled/*` や `conf.d/*` に別の `access_log` があればそちらも）、MySQL の slow log は `etc/mysql/mysql.conf.d/zz-isucon.cnf` で ON → `make deploy deploy-db`
 8. 初回ベンチ → `make measure`
 
-## 3 台に分けるとき
+## 台を分けるとき
 
-- DB を isu3 へ: `env.sh` の DB ホストを isu3 の内部 IP に、isu3 側で `bind-address` とユーザー権限 → `make deploy deploy-db`
-- 今の `mk/` は 1 台構成用で、各ターゲットは `HOST` の 1 台だけを操作する。分けるときは、deploy / bootstrap / keys などにホストごとの行を書き足す (元のスケルトンは `git log` の最初のコミットの Makefile にある)
-- app を isu2 にも: 上に加えて、`etc/nginx` の upstream に isu2 を追加 → `make deploy`
+どの台が何をするかは、`mk/vars.mk` の 3 行で決まる。
+
+```make
+APP_HOSTS   := isu1 isu2   # アプリ (build / restart / CPU プロファイル)
+WEB_HOST    := isu1        # nginx (reload / アクセスログ)
+DB_HOST     := isu3        # MySQL (deploy-db / slow log)
+```
+
+- `make deploy` は、3 行に出てくる全部の台で checkout と etc の反映をし、アプリの台で build と再起動をする。nginx の reload とアクセスログは `WEB_HOST`、slow log は `DB_HOST`
+- `make measure` は、アクセスログを `WEB_HOST` から、slow log を `DB_HOST` から取り、CPU プロファイルはアプリの全部の台から集めて合算する
+- `etc/` は全部の台で共通。最初はどの台も同じ中身なので、使わない設定が届いても困らない
+
+分ける手順
+
+1. `~/.ssh/isucon_config` に isu2 / isu3 を書き、`mk/vars.mk` の 3 行を書き換える
+2. `make keys` → 新しい台の公開鍵を 1 本ずつ Deploy key に登録する → `make bootstrap`
+3. DB を isu3 へ: `env.sh` の DB の接続先を isu3 の内部 IP (`ssh isu3 hostname -I`) に、`zz-isucon.cnf` に `bind-address = 0.0.0.0` → commit → `make deploy-db` → isu3 でアプリのユーザーを別の台から入れるようにする (`'isucon'@'%'` など)
+4. アプリを isu2 にも: `etc/nginx` の upstream に isu2 の内部 IP を足す。アプリがローカルのファイルに書く問題 (画像のアップロードなど) は、ファイルが台ごとに分かれるので先に片付ける
+5. `make deploy`
+6. 台ごとに、使わないサービスを止める (1 回だけ。make は止めない)。例: `ssh isu1 'sudo systemctl disable --now mysql'`、`ssh isu3 'sudo systemctl disable --now <SERVICE> nginx'`、`ssh isu2 'sudo systemctl disable --now nginx mysql'`
 
 ## 最終 (終了 30 分前)
 
 1. `etc/nginx/nginx.conf` → `access_log off;`、`etc/mysql/mysql.conf.d/zz-isucon.cnf` → `slow_query_log = 0`、`mk/vars.mk` → `PROF := off`
 2. `make deploy deploy-db`（`PROF := off` なら `make deploy` が `isu-pprof` を `disable --now` する。`etc/` からユニットを消すだけでは止まらない）
-3. 使っていない他言語のサービスが `disabled` か、`ssh isu1 systemctl list-unit-files` で見る（`enabled` のままだと、再起動したときに同じポートを取り合う）
+3. 使っていない他言語のサービスや、その台で使わないサービスが `disabled` か、台ごとに `systemctl list-unit-files` で見る（`enabled` のままだと、再起動したときに同じポートを取り合う）
 4. 余裕があれば 1 台再起動して動くか
 
 ## 注意
