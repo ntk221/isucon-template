@@ -127,9 +127,9 @@ DB_HOST     := isu3        # MySQL (deploy-db / slow log)
 1. `~/.ssh/isucon_config` に isu2 / isu3 を書き、`mk/vars.mk` の 3 行を書き換える
 2. `make keys` → 新しい台の公開鍵を 1 本ずつ Deploy key に登録する → `make bootstrap`
 3. DB を isu3 へ: `env.sh` の DB の接続先を isu3 の内部 IP (`ssh isu3 hostname -I`) に、`zz-isucon.cnf` に `bind-address = 0.0.0.0` → commit → `make deploy-db` → isu3 でアプリのユーザーを別の台から入れるようにする (`'isucon'@'%'` など)
-4. アプリを isu2 にも: `etc/nginx` の upstream に isu2 の内部 IP を足す。アプリがローカルのファイルに書く問題 (画像のアップロードなど) は、ファイルが台ごとに分かれるので先に片付ける
+4. アプリを isu2 にも: `etc/nginx` の upstream に isu2 の内部 IP を足す。アプリが自分の台の中に書くものは台ごとに分かれるので、先に片付ける (画像のアップロードなど。ISUCON13 では、ユーザー登録のたびに自分の台の PowerDNS にレコードを足すので、isu2 で登録したユーザーはベンチから名前解決できない)
 5. `make deploy`
-6. 台ごとに、使わないサービスを止める (1 回だけ。make は止めない)。例: `ssh isu1 'sudo systemctl disable --now mysql'`、`ssh isu3 'sudo systemctl disable --now <SERVICE> nginx'`、`ssh isu2 'sudo systemctl disable --now nginx mysql'`
+6. 台ごとに、使わないサービスを止める (1 回だけ。make は止めない)。止める前に、ほかに使っているものがないか確かめる (ISUCON13 では PowerDNS が自分の台の MySQL を使うので、isu1 の MySQL は止めない)。例: `ssh isu1 'sudo systemctl disable --now mysql'`、`ssh isu3 'sudo systemctl disable --now <SERVICE> nginx'`、`ssh isu2 'sudo systemctl disable --now nginx mysql'`
 
 ## 最終 (終了 30 分前)
 
