@@ -9,6 +9,7 @@ isucon/                      ← サーバでは /home/isucon
 │   └── vars.mk              # 問題ごとに変わる値。当日はここを書き換える
 ├── env.sh                   # systemd の EnvironmentFile (make etc-pull で取り込む)
 ├── etc/                     # /etc をパスそのままで写す (make deploy で rsync)
+├── db/                      # DB のスキーマ (db/<DB名>.sql)。make deploy が DB の台で mysqldef にかける
 ├── tools/
 │   ├── alp.yaml             # alp の集計設定
 │   ├── pprof-loop.sh        # サーバで CPU プロファイルを 10 秒ずつ取り続ける (etc/systemd/system/isu-pprof.service が動かす)
@@ -43,8 +44,8 @@ ISUCON 用の ssh の設定は、普段の `~/.ssh/config` とは別の `~/.ssh/
 | ファイル | 役割 | ターゲット |
 |---|---|---|
 | `mk/deploy.mk` | デプロイ | `deploy` `deploy-db` `log` |
-| `mk/setup.mk` | 初回だけ | `keys` `webapp-pull` `etc-pull` `bootstrap` |
-| `mk/measure.mk` | 計測 (ログの集計と CPU プロファイル) | `install-tools` `prep` `measure` |
+| `mk/setup.mk` | 初回だけ | `install-tools` `keys` `webapp-pull` `etc-pull` `bootstrap` `schema-pull` |
+| `mk/measure.mk` | 計測 (ログの集計と CPU プロファイル) | `prep` `measure` `show` |
 
 - 問題ごとに変わる値 (`SERVICE` `EXEC` と、台の役割など) は `mk/vars.mk` にまとめてあり、各ファイルが先頭で読み込む。当日に書き換えるのはこのファイルだけ
 - そのファイルの中でしか使わない値 (ログの場所など) は、各ファイルの冒頭にある
@@ -75,7 +76,10 @@ make show B=20261006-123712      # 前のベンチの結果を、measure と同�
   - 取り続けている間は、手で `curl .../debug/pprof/profile` しても `cpu profiling already in use` で取れない
   - `make deploy` と `make prep` は `isu-pprof` を起動し直す。起動し直すと、溜まったファイルは消える
   - 止めるときは、`main.go` から pprof の口を外して deploy する。`isu-pprof` は動いたままだが、取れずに 10 秒ごとに待つだけになる
-- ベンチの結果を AI に読ませるときは、`.claude/skills/isucon-read-log/` の skill を使う (「最新のベンチの log を読んで」)
+- DB のスキーマ (index など) は `db/<DB名>.sql` で管理する。`make deploy` が DB の台で mysqldef にかけ、差分の DDL だけを流す
+  - 最初の 1 回だけ `make schema-pull DB=isupipe` で今の DB から書き出す。配布の `initdb.d/*.sql` は mysqldef が読めない書き方のことがある (ISUCON13 の `CHARACTER SET utf8mb4`)
+  - DROP (index やテーブルを消す) は流れない。ファイルから消しても DB には残るので、消すときは手で `--enable-drop` を付ける
+- - ベンチの結果を AI に読ませるときは、`.claude/skills/isucon-read-log/` の skill を使う (「最新のベンチの log を読んで」)
 - ベンチだけ回し直すときは `make prep`（ログを空にする）
 - **measure する前に deploy / prep を叩くとそのベンチのログと CPU プロファイルは消える**
 - `make deploy-db` は my.cnf を変えたときだけ（MySQL 再起動は遅い）
@@ -102,8 +106,8 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
 2. 当日マニュアルの「参考実装の切り替え方法」から service 名を確認して、`mk/vars.mk` の `SERVICE` と `EXEC` を書き換える
    （`EXEC` は `ssh isu1 systemctl cat <service>` の `ExecStart` のパスをそのまま。`APP_DIR` `BIN` `WEBAPP` はそこから決まる）
 3. `make keys` → 表示された公開鍵を GitHub の Deploy keys に登録
-4. `make install-tools` （alp / pt-query-digest）
-5. ローカルで `make webapp-pull etc-pull` → commit/push → `make bootstrap`
+4. `make install-tools` （alp / pt-query-digest / mysqldef）
+5. ローカルで `make webapp-pull etc-pull` と `make schema-pull DB=<アプリの DB>` → commit/push → `make bootstrap`
    （`webapp-pull` は先に dry-run で取り込む量を出し、`LIMIT_MB` (100) を超えるなら取り込まずに止まる。そのときは出てきた大きいディレクトリを `EXCLUDE` に足す）
    （`.gitignore` の配布物の行は `webapp-pull` が `mk/vars.mk` の `EXEC` / `EXCLUDE` から書くので、手では直さない）
 6. アプリの `main.go` に `net/http/pprof` の口を開ける (`localhost:6060`。skill の手順 5)

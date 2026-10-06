@@ -11,7 +11,12 @@ PULL   := -rl --exclude .git $(addprefix --exclude ,$(SKIP)) $(SRC):$(REPO)/$(WE
 # 取り込む量 (EXCLUDE を除いた後) の上限。超えると取り込まずに止まる
 LIMIT_MB ?= 100
 
-.PHONY: keys webapp-pull etc-pull bootstrap
+.PHONY: install-tools keys webapp-pull etc-pull bootstrap schema-pull
+
+install-tools: ## nginx の台に alp を、DB の台に pt-query-digest と mysqldef を入れる
+	ssh $(WEB_HOST) 'command -v alp >/dev/null || (curl -sL https://github.com/tkuchiki/alp/releases/latest/download/alp_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp alp && sudo install /tmp/alp /usr/local/bin/alp)'
+	ssh $(DB_HOST) 'command -v pt-query-digest >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq percona-toolkit)'
+	ssh $(DB_HOST) 'command -v mysqldef >/dev/null || (curl -sL https://github.com/sqldef/sqldef/releases/latest/download/mysqldef_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp mysqldef && sudo install /tmp/mysqldef /usr/local/bin/mysqldef)'
 
 keys: ## 全部の台に GitHub 用の鍵を作る (あれば作らない)。公開鍵は台ごとに Deploy key に登録する
 	for h in $(HOSTS); do ssh $$h 'test -f ~/.ssh/id_ed25519 || ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 -q' || exit 1; done
@@ -40,3 +45,9 @@ bootstrap: ## 全部の台の REPO を git 管理にして origin/main を check
 	@test -n "$$(git ls-tree --name-only origin/main $(WEBAPP))" || { echo "origin/main に $(WEBAPP)/ が無い (make webapp-pull → commit/push してから)"; exit 1; }
 	for h in $(HOSTS); do ssh $$h 'cd $(REPO) && git init -q && (git remote add origin $(REPO_URL) 2>/dev/null || git remote set-url origin $(REPO_URL))' || exit 1; done
 	for h in $(HOSTS); do echo "== $$h"; ssh $$h 'cd $(REPO) && git fetch origin && git checkout -f --detach origin/main && git status -s' || exit 1; done
+
+schema-pull: ## DB の台の DB のスキーマを db/<DB>.sql に書き出す (DB=isupipe)。以降は make deploy が mysqldef で適用する
+	@test -n "$(DB)" || { echo "DB=<DB 名> を付ける (例: make schema-pull DB=isupipe)"; exit 1; }
+	mkdir -p db
+	ssh $(DB_HOST) 'sudo mysqldef -uroot -S $(MYSQL_SOCK) $(DB) --export' | sed -E 's/ AUTO_INCREMENT=[0-9]+//' > db/$(DB).sql
+	@echo "db/$(DB).sql に書き出した。index などはこのファイルに書き足し、コミットして make deploy"

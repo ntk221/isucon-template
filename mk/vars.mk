@@ -17,6 +17,7 @@ DB_HOST     := isu1
 REPO        := /home/isucon
 ACCESS_LOG  := /var/log/nginx/access.log
 SLOW_LOG    := /var/log/mysql/slow.log
+MYSQL_SOCK  := /var/run/mysqld/mysqld.sock
 
 REQUIRED := SERVICE EXEC DB_SERVICE REPO_URL APP_HOSTS WEB_HOST DB_HOST REPO
 $(foreach v,$(REQUIRED),$(if $(strip $($(v))),,$(error mk/vars.mk の $(v) が空。「サーバーを調べる」の結果で埋める)))

@@ -116,7 +116,7 @@ SH
 
 ```sh
 gh repo create <owner>/<repo> --template ntk221/isucon-template --private --clone   # 前日に済ませていなければ
-make install-tools  # alp / pt-query-digest
+make install-tools  # alp / pt-query-digest / mysqldef
 make keys           # isu1 に鍵を作り、公開鍵を表示する
 ssh isu1 'cat ~/.ssh/id_ed25519.pub' > /tmp/isu1.pub   # 登録の直前に、毎回サーバから取り直す
 gh repo deploy-key add /tmp/isu1.pub -R <owner>/<repo> --title isu1
@@ -152,6 +152,9 @@ git add -n <WEBAPP> | wc -l   # git に入るファイル数。0 なら配布物
   - 6060 が使われていたら (`sudo ss -ltnp`)、別のポートにして `tools/pprof-loop.sh` の `URL` も直す
   - アプリ本体が `http.DefaultServeMux` を使っている (`http.ListenAndServe(":8000", nil)` など) と、`/debug/pprof/` が本体のポートにも出る。そのときは nginx で `/debug/` を塞ぐ
 - 反映前にサーバで `nginx -t` を通す (一時ディレクトリに etc/nginx を送り、パスを差し替えた conf で `sudo nginx -t -c` を実行)
+- **DB のスキーマを書き出す** (index を mysqldef で管理する)。`make schema-pull DB=<アプリの DB>` で `db/<DB>.sql` に書き出す (ISUCON13 なら `isupipe`。PowerDNS の `isudns` も同じように書き出せる)
+  - 配布の `initdb.d/*.sql` は mysqldef が読めないことがあるので、今の DB から書き出したものを元にする
+  - 以降は、このファイルに index などを書き足してコミットし、`make deploy` で適用する。初期化 (`/api/initialize`) がテーブルを作り直す問題では、張った index が消えないかを確かめる (ISUCON13 は TRUNCATE だけなので消えない)
 - `git ls-files | grep -iE 'pem|ssl|tls|\.key|\.env$'` で秘密が入っていないことを確認してから commit / push。TLS の鍵は `/etc/nginx/ssl/` か `/etc/nginx/tls/` にあることが多く、`make etc-pull` はどちらも取り込まない (ISUCON13 は `tls/`)。ほかの場所にあれば `.gitignore` に足す
 
 ```sh

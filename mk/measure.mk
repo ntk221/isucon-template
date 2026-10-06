@@ -12,11 +12,7 @@ PROF_TMP   := $(LOG_DIR)/.pprof
 # CPU プロファイルの置き場所は、tools/pprof-loop.sh の DIR だけで決める
 PROF_DIR   := $(shell sed -n 's/^DIR=//p' tools/pprof-loop.sh)
 
-.PHONY: install-tools prep measure show
-
-install-tools: ## nginx の台に alp を、DB の台に pt-query-digest を入れる
-	ssh $(WEB_HOST) 'command -v alp >/dev/null || (curl -sL https://github.com/tkuchiki/alp/releases/latest/download/alp_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp alp && sudo install /tmp/alp /usr/local/bin/alp)'
-	ssh $(DB_HOST) 'command -v pt-query-digest >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq percona-toolkit)'
+.PHONY: prep measure show
 
 prep: ## アクセスログ / slow log / CPU プロファイルを空にする
 	ssh $(WEB_HOST) 'sudo truncate -c -s0 $(ACCESS_LOG)'

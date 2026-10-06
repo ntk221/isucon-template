@@ -10,6 +10,7 @@
 !/ssh_config.example
 !/etc/
 !/tools/
+!/db/
 !/notes/
 # 配布物のディレクトリの許可と、取り込まない巨大ファイル・バイナリの除外は、make webapp-pull が末尾に書く
 # (mk/vars.mk の EXEC / EXCLUDE から決まる。ここには書かない)
