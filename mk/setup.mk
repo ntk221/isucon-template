@@ -13,9 +13,11 @@ LIMIT_MB ?= 100
 
 .PHONY: install-tools keys webapp-pull etc-pull bootstrap schema-pull
 
-install-tools: ## nginx の台に alp を、DB の台に pt-query-digest と mysqldef を入れる
+install-tools: ## nginx の台に alp を、DB の台に pt-query-digest と mysqldef を入れ、全部の台で自動更新のタイマーを止める
 	ssh $(WEB_HOST) 'command -v alp >/dev/null || (curl -sL https://github.com/tkuchiki/alp/releases/latest/download/alp_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp alp && sudo install /tmp/alp /usr/local/bin/alp)'
 	ssh $(DB_HOST) 'command -v pt-query-digest >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq percona-toolkit)'
+	# 自動更新 (unattended-upgrade) がベンチ中に 1 コアを使い切ることがあるので、タイマーを止める。走っている更新は止めない
+	for h in $(HOSTS); do ssh $$h 'sudo systemctl disable --now -q apt-daily.timer apt-daily-upgrade.timer' || exit 1; done
 	ssh $(DB_HOST) 'command -v mysqldef >/dev/null || (curl -sL https://github.com/sqldef/sqldef/releases/latest/download/mysqldef_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp mysqldef && sudo install /tmp/mysqldef /usr/local/bin/mysqldef)'
 
 keys: ## 全部の台に GitHub 用の鍵を作る (あれば作らない)。公開鍵は台ごとに Deploy key に登録する

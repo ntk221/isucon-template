@@ -110,7 +110,7 @@ EXEC    := /home/isucon/private_isu/webapp/golang/app
 2. 当日マニュアルの「参考実装の切り替え方法」から service 名を確認して、`mk/vars.mk` の `SERVICE` と `EXEC` を書き換える
    （`EXEC` は `ssh isu1 systemctl cat <service>` の `ExecStart` のパスをそのまま。`APP_DIR` `BIN` `WEBAPP` はそこから決まる）
 3. `make keys` → 表示された公開鍵を GitHub の Deploy keys に登録
-4. `make install-tools` （alp / pt-query-digest / mysqldef）
+4. `make install-tools` （alp / pt-query-digest / mysqldef。全部の台で自動更新のタイマーも止める。ベンチ中に unattended-upgrade が 1 コアを使い切ることがある）
 5. ローカルで `make webapp-pull etc-pull` と `make schema-pull DB=<アプリの DB>` → commit/push → `make bootstrap`
    （`webapp-pull` は先に dry-run で取り込む量を出し、`LIMIT_MB` (100) を超えるなら取り込まずに止まる。そのときは出てきた大きいディレクトリを `EXCLUDE` に足す）
    （`.gitignore` の配布物の行は `webapp-pull` が `mk/vars.mk` の `EXEC` / `EXCLUDE` から書くので、手では直さない）

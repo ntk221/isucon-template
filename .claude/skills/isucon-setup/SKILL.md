@@ -116,7 +116,7 @@ SH
 
 ```sh
 gh repo create <owner>/<repo> --template ntk221/isucon-template --private --clone   # 前日に済ませていなければ
-make install-tools  # alp / pt-query-digest / mysqldef
+make install-tools  # alp / pt-query-digest / mysqldef。全部の台で自動更新のタイマー (apt-daily) も止める
 make keys           # isu1 に鍵を作り、公開鍵を表示する
 ssh isu1 'cat ~/.ssh/id_ed25519.pub' > /tmp/isu1.pub   # 登録の直前に、毎回サーバから取り直す
 gh repo deploy-key add /tmp/isu1.pub -R <owner>/<repo> --title isu1
