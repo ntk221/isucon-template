@@ -14,7 +14,10 @@ isucon/                      ← サーバでは /home/isucon
 │   ├── alp.yaml             # alp の集計設定
 │   ├── pprof-loop.sh        # サーバで CPU プロファイルを 10 秒ずつ取り続ける (etc/systemd/system/isu-pprof.service が動かす)
 │   ├── pprof-text.sh        # 合算した CPU プロファイルを、AI が読めるテキストにする (make measure が手元で呼ぶ)
-│   └── show.sh              # log/<日時>/ の結果を、列の意味つきで表示する (make show / make measure が呼ぶ)
+│   ├── show.sh              # log/<日時>/ の結果を、列の意味つきで表示する (make show / make measure が呼ぶ)
+│   ├── stat-loop.sh         # 全部の台で、コアごととプロセスごとの CPU を 1 秒ずつ記録し続ける (etc/systemd/system/isu-stat.service が動かす)
+│   ├── bench-window.sh      # アクセスログから、ベンチの時間帯を出す (make measure が nginx の台で呼ぶ)
+│   └── stat-summary.sh      # 記録からベンチの時間帯だけを切り出し、コアごととプロセスごとにまとめる (make measure が手元で呼ぶ)
 └── webapp/                  # 運営配布の webapp をそのまま (make webapp-pull)
 ```
 
@@ -79,7 +82,8 @@ make show B=20261006-123712      # 前のベンチの結果を、measure と同�
 - DB のスキーマ (index など) は `db/<DB名>.sql` で管理する。`make deploy` が DB の台で mysqldef にかけ、差分の DDL だけを流す
   - 最初の 1 回だけ `make schema-pull DB=isupipe` で今の DB から書き出す。配布の `initdb.d/*.sql` は mysqldef が読めない書き方のことがある (ISUCON13 の `CHARACTER SET utf8mb4`)
   - DROP (index やテーブルを消す) は流れない。ファイルから消しても DB には残るので、消すときは手で `--enable-drop` を付ける
-- - ベンチの結果を AI に読ませるときは、`.claude/skills/isucon-read-log/` の skill を使う (「最新のベンチの log を読んで」)
+- - 台の CPU は、全部の台の `isu-stat` が 1 秒ずつ記録し続けている (top を取り続けるのと同じ)。`make measure` がアクセスログからベンチの時間帯 (最後の initialize から、リクエストが 10 秒途切れるまで) を出し、コアごとの使用率とプロセスごとの %CPU の平均と最大を `log/<日時>/host.txt` にまとめる
+- ベンチの結果を AI に読ませるときは、`.claude/skills/isucon-read-log/` の skill を使う (「最新のベンチの log を読んで」)
 - ベンチだけ回し直すときは `make prep`（ログを空にする）
 - **measure する前に deploy / prep を叩くとそのベンチのログと CPU プロファイルは消える**
 - `make deploy-db` は my.cnf を変えたときだけ（MySQL 再起動は遅い）

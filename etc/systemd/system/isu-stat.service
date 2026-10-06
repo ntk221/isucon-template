@@ -1,0 +1,12 @@
+# 1 秒ごとに、コアごととプロセスごとの CPU を記録し続ける (tools/stat-loop.sh)。make deploy が全部の台で有効にして起動し直す
+# ExecStart のパスは REPO (/home/isucon) の下。REPO を変えたらここも直す
+[Unit]
+Description=isucon: コアごととプロセスごとの CPU を 1 秒ずつ記録し続ける
+After=network.target
+
+[Service]
+ExecStart=/bin/bash /home/isucon/tools/stat-loop.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

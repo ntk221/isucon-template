@@ -8,7 +8,7 @@ NEED_BRANCH = @test -n "$(BRANCH)" || { echo "ブランチに checkout してい
 
 .PHONY: deploy deploy-db log
 
-deploy: ## 今のブランチを push → 全部の台で checkout・etc 反映 → DB の台でスキーマを適用 → アプリの台で build・再起動 (起動を確認) → nginx reload・ログと CPU プロファイルを空に
+deploy: ## 今のブランチを push → 全部の台で checkout・etc 反映 → DB の台でスキーマを適用 → アプリの台で build・再起動 (起動を確認) → nginx reload・ログと CPU プロファイルと CPU の記録を空に
 	$(NEED_BRANCH)
 	git push origin $(BRANCH)
 	for h in $(HOSTS); do ssh $$h 'cd $(REPO) && git fetch origin && git checkout -f --detach origin/$(BRANCH)' || exit 1; done
@@ -20,6 +20,7 @@ deploy: ## 今のブランチを push → 全部の台で checkout・etc 反映 
 	ssh $(WEB_HOST) 'sudo truncate -c -s0 $(ACCESS_LOG)'
 	ssh $(DB_HOST) 'sudo truncate -c -s0 $(SLOW_LOG)'
 	for h in $(APP_HOSTS); do ssh $$h 'sudo systemctl enable -q isu-pprof && sudo systemctl restart isu-pprof' || exit 1; done
+	for h in $(HOSTS); do ssh $$h 'sudo systemctl enable -q isu-stat && sudo systemctl restart isu-stat' || exit 1; done
 	@echo "deployed $(BRANCH)@$$(git rev-parse --short origin/$(BRANCH))"
 
 deploy-db: ## 今のブランチを push → DB の台で checkout・etc 反映・DB 再起動 (my.cnf を変えたときだけ)

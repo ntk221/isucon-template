@@ -11,13 +11,16 @@ SHOW       := $(LOG_DIR)/$(B)
 PROF_TMP   := $(LOG_DIR)/.pprof
 # CPU プロファイルの置き場所は、tools/pprof-loop.sh の DIR だけで決める
 PROF_DIR   := $(shell sed -n 's/^DIR=//p' tools/pprof-loop.sh)
+# 台の CPU の記録の置き場所は、tools/stat-loop.sh の DIR だけで決める
+STAT_DIR   := $(shell sed -n 's/^DIR=//p' tools/stat-loop.sh)
 
 .PHONY: prep measure show
 
-prep: ## アクセスログ / slow log / CPU プロファイルを空にする
+prep: ## アクセスログ / slow log / CPU プロファイル / 台の CPU の記録を空にする
 	ssh $(WEB_HOST) 'sudo truncate -c -s0 $(ACCESS_LOG)'
 	ssh $(DB_HOST) 'sudo truncate -c -s0 $(SLOW_LOG)'
 	for h in $(APP_HOSTS); do ssh $$h 'sudo systemctl restart isu-pprof' || exit 1; done
+	for h in $(HOSTS); do ssh $$h 'sudo systemctl restart isu-stat' || exit 1; done
 
 measure: ## alp / slow query の集計、CPU プロファイル、今のコミットを log/<日時>/ に保存
 	mkdir -p $(OUT)
@@ -32,6 +35,10 @@ measure: ## alp / slow query の集計、CPU プロファイル、今のコミ�
 	else go tool pprof -symbolize=none -proto $(PROF_TMP)/*/*.pprof > $(OUT)/cpu.pprof && \
 	  tools/pprof-text.sh $(LOG_DIR) $(BENCH) $(REPO) > $(OUT)/pprof.txt; fi
 	rm -rf $(PROF_TMP)
+	ssh $(WEB_HOST) 'bash $(REPO)/tools/bench-window.sh $(ACCESS_LOG)' > $(OUT)/window.txt
+	for h in $(HOSTS); do rsync -q $$h:$(STAT_DIR)/stat.txt $(OUT)/stat-$$h.txt 2>/dev/null; done; true
+	@if [ -s $(OUT)/window.txt ] && ls $(OUT)/stat-*.txt >/dev/null 2>&1; then tools/stat-summary.sh $$(cat $(OUT)/window.txt) $(OUT)/stat-*.txt > $(OUT)/host.txt; \
+	else echo "台の CPU の記録がない (isu-stat が動いていないか、アクセスログが空)"; fi
 	@$(MAKE) --no-print-directory -f mk/measure.mk show B=$(BENCH)
 
 show: ## log/<日時>/ の結果を表示する (B=20261006-123712。省略すると最新)

@@ -15,6 +15,13 @@ ROWS_WARN=1000
 
 echo "${HEAD}== $D/${OFF} (commit $(cat "$D/commit.txt"))"
 
+if [ -f "$D/host.txt" ]; then
+  echo
+  echo "${HEAD}== host: 台の CPU。ベンチの時間帯の、コアごとの使用率とプロセスごとの %CPU${OFF}"
+  echo "${DIM}   どちらも全部のコアが埋まっていれば CPU が張り付いている。片方のコアだけ高いなら直列やロックの疑い。iowait が高いならディスク${OFF}"
+  sed 's/^/   /' "$D/host.txt"
+fi
+
 echo
 echo "${HEAD}== alp: エンドポイントごと。合計の大きい順に 15 行 (時間は秒)${OFF}"
 echo "${DIM}   sum = 合計、avg = 平均、p90 = 9 割のリクエストがこれ以下、max = 最大。4xx は黄、5xx は赤${OFF}"
