@@ -12,7 +12,8 @@ isucon/                      ← サーバでは /home/isucon
 ├── tools/
 │   ├── alp.yaml             # alp の集計設定
 │   ├── pprof-loop.sh        # サーバで CPU プロファイルを 10 秒ずつ取り続ける (etc/systemd/system/isu-pprof.service が動かす)
-│   └── pprof-text.sh        # 合算した CPU プロファイルを、AI が読めるテキストにする (make measure が手元で呼ぶ)
+│   ├── pprof-text.sh        # 合算した CPU プロファイルを、AI が読めるテキストにする (make measure が手元で呼ぶ)
+│   └── show.sh              # log/<日時>/ の結果を、列の意味つきで表示する (make show / make measure が呼ぶ)
 └── webapp/                  # 運営配布の webapp をそのまま (make webapp-pull)
 ```
 
