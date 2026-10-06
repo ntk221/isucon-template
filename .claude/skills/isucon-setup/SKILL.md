@@ -152,7 +152,7 @@ git add -n <WEBAPP> | wc -l   # git に入るファイル数。0 なら配布物
   - 6060 が使われていたら (`sudo ss -ltnp`)、別のポートにして `tools/pprof-loop.sh` の `URL` も直す
   - アプリ本体が `http.DefaultServeMux` を使っている (`http.ListenAndServe(":8000", nil)` など) と、`/debug/pprof/` が本体のポートにも出る。そのときは nginx で `/debug/` を塞ぐ
 - 反映前にサーバで `nginx -t` を通す (一時ディレクトリに etc/nginx を送り、パスを差し替えた conf で `sudo nginx -t -c` を実行)
-- `git ls-files | grep -iE 'pem|ssl|\.env$'` で秘密が入っていないことを確認してから commit / push
+- `git ls-files | grep -iE 'pem|ssl|tls|\.key|\.env$'` で秘密が入っていないことを確認してから commit / push。TLS の鍵は `/etc/nginx/ssl/` か `/etc/nginx/tls/` にあることが多く、`make etc-pull` はどちらも取り込まない (ISUCON13 は `tls/`)。ほかの場所にあれば `.gitignore` に足す
 
 ```sh
 git add -A && git commit -m "配布物と設定を取り込む" && git push   # テンプレートから clone したリポジトリなので git init は要らない

@@ -29,7 +29,7 @@ webapp-pull: ## 最初のアプリの台の webapp を手元にコピーし、.g
 	printf '%s\n' '# >>> webapp-pull が mk/vars.mk の EXEC / EXCLUDE から書く (手で直さない)' $(foreach p,$(IGNORE),'$(p)') '# <<< webapp-pull' >> .gitignore
 
 etc-pull: ## 最初のアプリの台の nginx / mysql / systemd / env.sh を手元にコピー
-	rsync -rl --rsync-path='sudo rsync' --exclude /ssl/ $(SRC):/etc/nginx/ etc/nginx/
+	rsync -rl --rsync-path='sudo rsync' --exclude /ssl/ --exclude /tls/ $(SRC):/etc/nginx/ etc/nginx/
 	rsync -rl --rsync-path='sudo rsync' --exclude debian.cnf $(SRC):/etc/mysql/ etc/mysql/
 	mkdir -p etc/systemd/system
 	rsync -l --rsync-path='sudo rsync' $(SRC):/etc/systemd/system/$(SERVICE).service etc/systemd/system/

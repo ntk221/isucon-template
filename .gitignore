@@ -16,5 +16,6 @@
 
 # TLS 秘密鍵はリポジトリに入れない (deploy の rsync は --delete なしなのでサーバ側は残る)
 /etc/nginx/ssl/
+/etc/nginx/tls/
 *.pprof
 /log/

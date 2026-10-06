@@ -28,6 +28,6 @@ echo; echo "## diff (vs $PB): 直前のベンチからの増減。マイナス�
 if [ -n "$PREV" ]; then $PPROF -top -nodecount=30 -diff_base="$PREV" "$CUR"; else echo '(直前のベンチがない)'; fi
 
 echo; echo "## list: main. の関数のうち、cum の上位 $LIST_N 個のソース (行ごとの CPU 時間)"
-for f in $($PPROF -top -cum -nodecount=200 "$CUR" | awk '$6 ~ /^main\./ {print $6}' | head -$LIST_N); do
+for f in $($PPROF -top -cum -nodecount=200 "$CUR" | awk '$6 ~ /^main\./ && $6 !~ /^main\.main(\.|$)/ {print $6}' | head -$LIST_N); do
   $PPROF -list "^$(printf '%s' "$f" | sed 's/[][()*.+?^$|{}\\]/\\&/g')\$" "$CUR"
 done

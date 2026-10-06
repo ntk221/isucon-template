@@ -33,5 +33,5 @@ measure: ## alp / slow query の集計、CPU プロファイル、今のコミ�
 	rm -rf $(PROF_TMP)
 	@echo "== alp"; head -15 $(LOG_DIR)/$(BENCH)-alp.tsv
 	@echo "== slow query"; head -10 $(LOG_DIR)/$(BENCH)-slow.tsv | cut -c1-160
-	@test ! -f $(LOG_DIR)/$(BENCH)-pprof.txt || { echo "== cpu (main. の関数、cum の大きい順)"; awk '/^## top \(cum\)/ {f = 1; next} /^## / {f = 0} f && $$6 ~ /^main\./ {printf "%10s %7s  %s\n", $$4, $$5, $$6}' $(LOG_DIR)/$(BENCH)-pprof.txt | head -10; }
+	@test ! -f $(LOG_DIR)/$(BENCH)-pprof.txt || { echo "== cpu (main. の関数、cum の大きい順)"; awk '/^## top \(cum\)/ {f = 1; next} /^## / {f = 0} f && $$6 ~ /^main\./ && $$6 !~ /^main\.main(\.|$$)/ {printf "%10s %7s  %s\n", $$4, $$5, $$6}' $(LOG_DIR)/$(BENCH)-pprof.txt | head -10; }
 	@echo "saved $(LOG_DIR)/$(BENCH)-* (commit $$(cat $(LOG_DIR)/$(BENCH)-commit.txt))"

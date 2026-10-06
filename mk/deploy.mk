@@ -13,7 +13,7 @@ deploy: ## 今のブランチを push → 全部の台で checkout・etc 反映 
 	git push origin $(BRANCH)
 	for h in $(HOSTS); do ssh $$h 'cd $(REPO) && git fetch origin && git checkout -f --detach origin/$(BRANCH)' || exit 1; done
 	for h in $(HOSTS); do ssh $$h 'sudo rsync -rl $(REPO)/etc/ /etc/ && sudo systemctl daemon-reload' || exit 1; done
-	for h in $(APP_HOSTS); do ssh $$h 'cd $(APP_DIR) && PATH=/usr/local/go/bin:$$PATH go build -o $(BIN) . && sudo systemctl restart $(SERVICE)' || exit 1; done
+	for h in $(APP_HOSTS); do ssh $$h 'cd $(APP_DIR) && PATH=$$HOME/local/golang/bin:/usr/local/go/bin:$$PATH go build -o $(BIN) . && sudo systemctl restart $(SERVICE)' || exit 1; done
 	for h in $(APP_HOSTS); do ssh $$h 'sleep 2; systemctl is-active -q $(SERVICE)' || { echo "$$h の $(SERVICE) が起動していない"; ssh $$h 'sudo journalctl -u $(SERVICE) -n 20 --no-pager'; exit 1; }; done
 	ssh $(WEB_HOST) 'sudo nginx -t && sudo systemctl reload nginx'
 	ssh $(WEB_HOST) 'sudo truncate -c -s0 $(ACCESS_LOG)'
