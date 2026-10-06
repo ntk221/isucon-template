@@ -5,11 +5,14 @@ LOG_DIR    := log
 # ベンチ 1 回分の置き場所。日時 (20261006-123712) にするのは、ポータルの履歴の時刻と突き合わせるため
 BENCH      := $(shell date +%Y%m%d-%H%M%S)
 OUT        := $(LOG_DIR)/$(BENCH)
+# make show で表示するベンチ (log/ の下のフォルダ名)。省略すると最新
+B          ?= $(notdir $(patsubst %/,%,$(lastword $(sort $(wildcard $(LOG_DIR)/*/)))))
+SHOW       := $(LOG_DIR)/$(B)
 PROF_TMP   := $(LOG_DIR)/.pprof
 # CPU プロファイルの置き場所は、tools/pprof-loop.sh の DIR だけで決める
 PROF_DIR   := $(shell sed -n 's/^DIR=//p' tools/pprof-loop.sh)
 
-.PHONY: install-tools prep measure
+.PHONY: install-tools prep measure show
 
 install-tools: ## nginx の台に alp を、DB の台に pt-query-digest を入れる
 	ssh $(WEB_HOST) 'command -v alp >/dev/null || (curl -sL https://github.com/tkuchiki/alp/releases/latest/download/alp_linux_$$(dpkg --print-architecture).tar.gz | tar xz -C /tmp alp && sudo install /tmp/alp /usr/local/bin/alp)'
@@ -33,7 +36,11 @@ measure: ## alp / slow query の集計、CPU プロファイル、今のコミ�
 	else go tool pprof -symbolize=none -proto $(PROF_TMP)/*/*.pprof > $(OUT)/cpu.pprof && \
 	  tools/pprof-text.sh $(LOG_DIR) $(BENCH) $(REPO) > $(OUT)/pprof.txt; fi
 	rm -rf $(PROF_TMP)
-	@echo "== alp"; head -15 $(OUT)/alp.tsv
-	@echo "== slow query"; head -10 $(OUT)/slow.tsv | cut -c1-160
-	@test ! -f $(OUT)/pprof.txt || { echo "== cpu (main. の関数、cum の大きい順)"; awk '/^## top \(cum\)/ {f = 1; next} /^## / {f = 0} f && $$6 ~ /^main\./ && $$6 !~ /^main\.main(\.|$$)/ {printf "%10s %7s  %s\n", $$4, $$5, $$6}' $(OUT)/pprof.txt | head -10; }
-	@echo "saved $(OUT)/ (commit $$(cat $(OUT)/commit.txt))"
+	@$(MAKE) --no-print-directory -f mk/measure.mk show B=$(BENCH)
+
+show: ## log/<日時>/ の結果を表示する (B=20261006-123712。省略すると最新)
+	@test -n "$(B)" -a -d $(SHOW) || { echo "log/$(B) がない。ls log/ でフォルダ名を見て B=<日時> を付ける"; exit 1; }
+	@echo "== $(SHOW)/ (commit $$(cat $(SHOW)/commit.txt))"
+	@echo "== alp"; head -15 $(SHOW)/alp.tsv | column -t -s "$$(printf '\t')"
+	@echo "== slow query"; head -10 $(SHOW)/slow.tsv | cut -c1-160
+	@test ! -f $(SHOW)/pprof.txt || { echo "== cpu (main. の関数、cum の大きい順)"; awk '/^## top \(cum\)/ {f = 1; next} /^## / {f = 0} f && $$6 ~ /^main\./ && $$6 !~ /^main\.main(\.|$$)/ {printf "%10s %7s  %s\n", $$4, $$5, $$6}' $(SHOW)/pprof.txt | head -10; }

@@ -63,6 +63,7 @@ ISUCON 用の ssh の設定は、普段の `~/.ssh/config` とは別の `~/.ssh/
 make deploy                      # 今のブランチを push → pull → build → restart (起動を確認) → ログと CPU プロファイルを空に
 （ポータルでベンチ）
 make measure                     # alp / slow query の集計、CPU プロファイル、今のコミットを log/<日時>/ に保存する
+make show B=20261006-123712      # 前のベンチの結果を、measure と同じ形で表示する (B を省くと最新)
 ```
 
 - deploy するのは今 checkout しているブランチ。別のブランチを出すときは `make deploy BRANCH=xxx`。良ければ main にマージ、戻すときは `git revert`

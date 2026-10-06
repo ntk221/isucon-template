@@ -1,6 +1,6 @@
 DEPLOY  := deploy deploy-db log
 SETUP   := keys webapp-pull etc-pull bootstrap
-MEASURE := install-tools prep measure
+MEASURE := install-tools prep measure show
 
 .DEFAULT_GOAL := help
 .PHONY: help $(DEPLOY) $(SETUP) $(MEASURE)
