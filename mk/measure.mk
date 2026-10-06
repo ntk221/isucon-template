@@ -43,4 +43,4 @@ show: ## log/<日時>/ の結果を表示する (B=20261006-123712。省略す�
 	@echo "== $(SHOW)/ (commit $$(cat $(SHOW)/commit.txt))"
 	@echo "== alp"; head -15 $(SHOW)/alp.tsv | column -t -s "$$(printf '\t')"
 	@echo "== slow query"; head -10 $(SHOW)/slow.tsv | cut -c1-160
-	@test ! -f $(SHOW)/pprof.txt || { echo "== cpu (main. の関数、cum の大きい順)"; awk '/^## top \(cum\)/ {f = 1; next} /^## / {f = 0} f && $$6 ~ /^main\./ && $$6 !~ /^main\.main(\.|$$)/ {printf "%10s %7s  %s\n", $$4, $$5, $$6}' $(SHOW)/pprof.txt | head -10; }
+	@test ! -f $(SHOW)/pprof.txt || { echo "== cpu (main. の関数、cum の大きい順に 5 個)"; awk '/^## main\. の関数/ {f = 1; next} /^## / {f = 0} f && $$6 ~ /^main\./ {printf "%10s %7s  %s\n", $$4, $$5, $$6}' $(SHOW)/pprof.txt | head -5; }

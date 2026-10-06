@@ -10,6 +10,8 @@ PB=$(basename "$(dirname "${PREV:-none/none}")")
 # ソースはサーバのパス (REPO の下) で記録されているので、手元のリポジトリ (.) に読み替える
 PPROF="go tool pprof -symbolize=none -trim_path=$REPO -source_path=."
 LIST_N=3
+# アプリの関数 (main.) を、何位にあっても全部拾う。main() の中で作るクロージャ (echo のミドルウェアなど) は除く
+MAIN_TOP=$($PPROF -top -cum -nodecount=1000 "$CUR" | awk '$6 ~ /^main\./ && $6 !~ /^main\.main(\.|$)/')
 
 commit() { cat "$LOG/$1/commit.txt" 2>/dev/null || echo '?'; }
 reqs()   { awk -F'\t' '{s += $1} END {print s + 0}' "$LOG/$1/alp.tsv" 2>/dev/null || echo '?'; }
@@ -24,10 +26,14 @@ $PPROF -top -nodecount=30 "$CUR"
 echo; echo '## top (cum): 呼び出し先も含めた CPU 時間'
 $PPROF -top -cum -nodecount=30 "$CUR"
 
+echo; echo '## main. の関数 (cum): アプリの関数だけを、呼び出し先も含めた CPU 時間の大きい順に'
+echo '      flat  flat%   sum%        cum   cum%'
+echo "$MAIN_TOP"
+
 echo; echo "## diff (vs $PB): 直前のベンチからの増減。マイナスは減った。リクエスト数が増えると全体に増える"
 if [ -n "$PREV" ]; then $PPROF -top -nodecount=30 -diff_base="$PREV" "$CUR"; else echo '(直前のベンチがない)'; fi
 
 echo; echo "## list: main. の関数のうち、cum の上位 $LIST_N 個のソース (行ごとの CPU 時間)"
-for f in $($PPROF -top -cum -nodecount=200 "$CUR" | awk '$6 ~ /^main\./ && $6 !~ /^main\.main(\.|$)/ {print $6}' | head -$LIST_N); do
+for f in $(echo "$MAIN_TOP" | awk '{print $6}' | head -$LIST_N); do
   $PPROF -list "^$(printf '%s' "$f" | sed 's/[][()*.+?^$|{}\\]/\\&/g')\$" "$CUR"
 done

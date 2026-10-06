@@ -11,7 +11,7 @@ description: make measure が log/ に残したベンチの結果 (alp / slow qu
 |---|---|
 | `log/<bench>/alp.tsv` | エンドポイントごとの集計。列は 回数、2xx、4xx、5xx、method、uri、合計、平均、p90、最大 (秒)。合計の大きい順 |
 | `log/<bench>/slow.tsv` | クエリの形ごとの集計。列は クエリの形、回数、合計、平均、Rows_examined の合計。合計の大きい順に 50 件 |
-| `log/<bench>/pprof.txt` | CPU プロファイル。top (flat)、top (cum)、直前のベンチとの diff、`main.` の重い関数のソース |
+| `log/<bench>/pprof.txt` | CPU プロファイル。top (flat)、top (cum)、`main.` の関数だけの cum 順、直前のベンチとの diff、`main.` の重い関数のソース |
 | `log/<bench>/commit.txt` | 計測したときのコミット |
 | `log/<bench>/cpu.pprof` | 合算した CPU プロファイル (バイナリ)。`pprof.txt` に無い見方をしたいときだけ `go tool pprof -top -focus=<関数> ...` などで開く |
 
@@ -34,7 +34,7 @@ description: make measure が log/ に残したベンチの結果 (alp / slow qu
 5. **pprof.txt を読む。**
    - 先頭の `requests` は alp の回数の合計。CPU 時間の差は、必ずこの数と一緒に読む。リクエスト数が増えれば、ほとんどの関数の CPU 時間が増える
    - `Duration` はベンチの長さではない (deploy / prep から measure までの時間)。負荷のない時間はサンプルが 0 なので、中身には混ざらない
-   - top (cum) の `main.` の関数で、どのハンドラが CPU を使っているかを見る。alp の上位のエンドポイントと対応させる
+   - 「main. の関数 (cum)」の節で、どのハンドラが CPU を使っているかを見る。top (cum) は net/http や echo、DB ドライバが上を占めるので、アプリの関数はこの節で見る。alp の上位のエンドポイントと対応させる
    - top (flat) の上位がランタイム (`memmove` `mallocgc` `scanobject` `Syscall` など) ばかりでも、それ自体は直せない。cum で、どのハンドラから来ているかをたどる
    - diff はマイナスが減った関数。今回の変更が狙いどおり効いたかを確かめる
    - list の行ごとの時間で、重い行を `ファイル:行` で示す。ソースは手元のリポジトリから読んでいるので、HEAD が `commit.txt` と違えば行がずれている。そのときは `git show <commit>:<ファイル>` で見る
