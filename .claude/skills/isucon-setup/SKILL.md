@@ -1,6 +1,6 @@
 ---
 name: isucon-setup
-description: ISUCON の競技サーバ (練習の過去問でも本番でも) に入り、このリポジトリの Makefile で make deploy が通る状態まで持っていく初期セットアップ。サーバの IP を渡されて「セットアップして」「deploy できるようにして」「新しいサーバが来た」と言われたら使う。当日マニュアルを読む → サーバ調査 → Makefile / .gitignore / ssh config の書き換え → GitHub リポジトリと Deploy key → 取り込み → bootstrap → 初回 deploy まで。
+description: ISUCON の競技サーバ (練習の過去問でも本番でも) に入り、このリポジトリの Makefile で make deploy が通る状態まで持っていく初期セットアップ。サーバの IP と当日マニュアルを渡されて「セットアップして」「deploy できるようにして」「新しいサーバが来た」と言われたら使う (例: `/isucon-setup 52.195.210.243 notes/manual.md`)。当日マニュアルを読む → サーバ調査 → Makefile / .gitignore / ssh config の書き換え → GitHub リポジトリと Deploy key → 取り込み → bootstrap → 初回 deploy まで。
 ---
 
 # ISUCON 初期セットアップ
@@ -10,11 +10,24 @@ description: ISUCON の競技サーバ (練習の過去問でも本番でも) �
 - リポジトリのルートは、サーバ上の `REPO` (`mk/vars.mk` の変数。既定値は `/home/isucon`) に置く。`EXEC` がその下に無いと make は止まる。そのときの決め方は手順 3 に書く
 - Makefile は ssh の設定の Host 名 (isu1/isu2/isu3) しか知らない。ISUCON 用の設定は `~/.ssh/isucon_config` に書き、`~/.ssh/config` から `Include` で読む。`make -n <ターゲット>` で、実際に走るコマンドを実行せずに見られる
 
-各ステップで確認を取り、失敗したら先へ進まない。サーバ側で直接ファイルを編集しない (すべてリポジトリ経由)。
+失敗したら先へ進まない。サーバ側で直接ファイルを編集しない (すべてリポジトリ経由)。
+
+**ユーザーにしか決められないことは、最初に 1 回でまとめて聞く。** 途中で止まって聞かない (自律実行だと答えが来ない)。聞くのは次の 4 つだけで、残りはこのスキルの手順で決めて進める。
+
+1. 当日マニュアル (手順 0)。貼ってもらうか、ファイルの場所を受け取る
+2. サーバの IP (手順 1)
+3. GitHub のリポジトリ (手順 4)。`git remote -v` に origin があればそれを使い、聞かない
+4. `REPO` の置き場 (手順 3)。`EXEC` が `/home/isucon` の下に無いときだけ
+
+IP とマニュアルが揃っていれば、初回 deploy と notes の commit まで止まらずに進める。手順 0 の「記載なし・サーバでは分からない」項目は、聞かずに安全側の前提を置いて notes に明記する。
 
 ## 0. 当日マニュアルを読む (サーバに触る前に)
 
-サービス名、ディレクトリ、ポートなどは推測せずに、まずマニュアルから取る。ユーザーにマニュアルの URL かファイルを聞く。過去問なら `https://github.com/isucon/isucon<N>-<qualify|final>` の `docs/manual.md` にあることが多い。GitHub のファイルは `raw.githubusercontent.com` から curl で原文を読む (要約させない)。
+サービス名、ディレクトリ、ポートなどは推測せずに、まずマニュアルから取る。
+
+- **マニュアルはユーザーから渡してもらう** (スキルの引数か、貼り付け)。渡されたものを `notes/manual.md` に保存して commit する。後で `isucon-read-log` がルール (一覧の件数、即時反映、失格条件) を読み返せるようにするため
+- **練習環境 (suburi など) では、ポータルのマニュアルを使う。** 過去問の GitHub (`https://github.com/isucon/isucon<N>-<qualify|final>` の `docs/manual.md`) にある原本は本番向けで、練習環境とは違う。ISUCON9 予選の suburi では、ベンチの依頼方法 (ポータルのダッシュボード)、外部サービス (支払い・配送) がベンチ中しか応答しないこと、80 番が閉じていること、インスタンスを止めるとグローバル IP が変わることが、ポータルのマニュアルにしか書いていなかった
+- 渡されなかったときだけ、GitHub の原本を `raw.githubusercontent.com` から curl で読む (要約させない)。その場合は、上の練習環境との違いが埋まらないまま進めることになるので、notes の表に「要確認」として残し、最後の報告でマニュアルを求める
 
 マニュアルに期待する項目と、書いていないときの調べ方は [manual-checklist.md](manual-checklist.md) にある。このチェックリストの全項目について、マニュアルの記載を探す。
 
@@ -105,7 +118,8 @@ SH
 2. **`.gitignore`**: 配布物まわりは手で書かない。先頭の `/*` で `REPO` 直下は全部無視し、配布物のディレクトリの許可 (`!/<WEBAPP>/`) と `EXCLUDE` / `EXEC` の除外は、`make webapp-pull` が末尾の `# >>> webapp-pull` のブロックに書く
 3. 除外の効き方は、`make webapp-pull` のあと `git add -n <WEBAPP> | wc -l` と `git add -n <WEBAPP> | grep -E 'upload|node_modules'` で確認できる
 4. **`tools/alp.yaml` の `matching_groups`**: テンプレートには private-isu 向けの例が入っているので、問題のルーティングに合わせて全部書き換える。まとめないと、ID やユーザー名を含む uri が 1 件ずつ別の行になり、重いエンドポイントが alp の表の上に出てこない (isupipe では、まとめないと 734 行。1 位に見えた `POST /api/login` の 9 倍の `GET /api/user/:username/icon` がユーザーごとに散らばっていた)
-   - アプリのルーティング (Go の echo なら `grep -nE '\.(GET|POST|PUT|DELETE|PATCH)\(' <APP_DIR>/*.go`) から、`:param` が入っているルートを全部拾う。`:param` がないルートは書かなくてよい
+   - アプリのルーティングから、パラメータが入っているルートを全部拾う。パラメータがないルートは書かなくてよい
+     - ルータごとにメソッド名が違うので、まとめて `grep -nE '\.(GET|POST|PUT|DELETE|PATCH|Get|Post|Put|Delete|Patch|Handle|HandleFunc)\(' <APP_DIR>/*.go` で探す。echo は `e.GET(` と `:id`、chi は `r.Get(` と `{id}` (isucari)、gorilla は `r.HandleFunc(` と `{id}`、標準の `http.ServeMux` は `Handle("GET /items/{id}"`
    - `:param` を正規表現にする。数字の ID は `\d+`、名前は `[^/]+`。末尾は固定の文字列のまま残す。`[a-z]+$` のように末尾まで正規表現にすると、別のエンドポイントが 1 行に混ざる
    - 前後を `^` と `$` で固定する。alp は uri の一部に当たれば一致扱いにするので、付けないと下の階層まで吸い込む
    - alp は上から順に試し、最初に当たった正規表現の文字列に uri を置き換える。具体的なもの (`^/api/user/me$`) を、一般的なもの (`^/api/user/[^/]+$`) より上に書く
@@ -154,7 +168,11 @@ git add -n <WEBAPP> | wc -l   # git に入るファイル数。0 なら配布物
 - 反映前にサーバで `nginx -t` を通す (一時ディレクトリに etc/nginx を送り、パスを差し替えた conf で `sudo nginx -t -c` を実行)
 - **DB のスキーマを書き出す** (index を mysqldef で管理する)。`make schema-pull DB=<アプリの DB>` で `db/<DB>.sql` に書き出す (ISUCON13 なら `isupipe`。PowerDNS の `isudns` も同じように書き出せる)
   - 配布の `initdb.d/*.sql` は mysqldef が読めないことがあるので、今の DB から書き出したものを元にする
-  - 以降は、このファイルに index などを書き足してコミットし、`make deploy` で適用する。初期化 (`/api/initialize`) がテーブルを作り直す問題では、張った index が消えないかを確かめる (ISUCON13 は TRUNCATE だけなので消えない)
+  - 以降は、このファイルに index などを書き足してコミットし、`make deploy` で適用する
+  - **初期化 (`POST /initialize`) がテーブルを作り直すかを、ここで必ず確かめる。** ハンドラが呼ぶスクリプト (isucari は `webapp/init.sh`) と、それが流す SQL に `DROP TABLE` があるかを見る
+    - TRUNCATE だけ (ISUCON13) なら、`db/<DB>.sql` に書いた index は残る
+    - DROP TABLE → CREATE TABLE (ISUCON9 予選の `sql/01_schema.sql`) なら、`db/<DB>.sql` に書いた index はベンチのたびに消える。index は配布物の schema SQL (`01_schema.sql` など) の CREATE TABLE にも書き、`db/<DB>.sql` は mysqldef で差分を見る用にする。どちらを正とするかを notes に書いておく
+    - 初期データが大きい (isucari は 120MB の `90_initial.sql`) と、initialize の 20 秒制限に効く。これも notes に残す
 - `git ls-files | grep -iE 'pem|ssl|tls|\.key|\.env$'` で秘密が入っていないことを確認してから commit / push。TLS の鍵は `/etc/nginx/ssl/` か `/etc/nginx/tls/` にあることが多く、`make etc-pull` はどちらも取り込まない (ISUCON13 は `tls/`)。ほかの場所にあれば `.gitignore` に足す
 
 ```sh
