@@ -166,13 +166,14 @@ git add -n <WEBAPP> | wc -l   # git に入るファイル数。0 なら配布物
   - 6060 が使われていたら (`sudo ss -ltnp`)、別のポートにして `tools/pprof-loop.sh` の `URL` も直す
   - アプリ本体が `http.DefaultServeMux` を使っている (`http.ListenAndServe(":8000", nil)` など) と、`/debug/pprof/` が本体のポートにも出る。そのときは nginx で `/debug/` を塞ぐ
 - 反映前にサーバで `nginx -t` を通す (一時ディレクトリに etc/nginx を送り、パスを差し替えた conf で `sudo nginx -t -c` を実行)
-- **DB のスキーマを書き出す** (index を mysqldef で管理する)。`make schema-pull DB=<アプリの DB>` で `db/<DB>.sql` に書き出す (ISUCON13 なら `isupipe`。PowerDNS の `isudns` も同じように書き出せる)
-  - 配布の `initdb.d/*.sql` は mysqldef が読めないことがあるので、今の DB から書き出したものを元にする
-  - 以降は、このファイルに index などを書き足してコミットし、`make deploy` で適用する
-  - **初期化 (`POST /initialize`) がテーブルを作り直すかを、ここで必ず確かめる。** ハンドラが呼ぶスクリプト (isucari は `webapp/init.sh`) と、それが流す SQL に `DROP TABLE` があるかを見る
-    - TRUNCATE だけ (ISUCON13) なら、`db/<DB>.sql` に書いた index は残る
-    - DROP TABLE → CREATE TABLE (ISUCON9 予選の `sql/01_schema.sql`) なら、`db/<DB>.sql` に書いた index はベンチのたびに消える。index は配布物の schema SQL (`01_schema.sql` など) の CREATE TABLE にも書き、`db/<DB>.sql` は mysqldef で差分を見る用にする。どちらを正とするかを notes に書いておく
-    - 初期データが大きい (isucari は 120MB の `90_initial.sql`) と、initialize の 20 秒制限に効く。これも notes に残す
+- **DB のスキーマをどこで管理するかを決める。先に、初期化 (`POST /initialize`) がテーブルを作り直すかを必ず確かめる。** ハンドラが呼ぶスクリプト (isucari は `webapp/init.sh`) と、それが流す SQL に `DROP TABLE` があるかを見る (`grep -l 'DROP TABLE' <WEBAPP>/sql/*.sql` など)
+  - **TRUNCATE や DELETE だけでテーブルが残る (ISUCON13)** → mysqldef で管理する。`make schema-pull DB=<アプリの DB>` で `db/<DB>.sql` に書き出す (ISUCON13 なら `isupipe`。PowerDNS の `isudns` も同じように書き出せる)
+    - 配布の `initdb.d/*.sql` は mysqldef が読めないことがあるので、今の DB から書き出したものを元にする
+    - 以降は、このファイルに index などを書き足してコミットし、`make deploy` で適用する。DROP や index の作り直しは流れない (README)
+  - **DROP TABLE → CREATE TABLE (ISUCON9 予選の `sql/01_schema.sql`)** → mysqldef は使わない。`make schema-pull` を叩かず、`db/` を作らない。index は配布物の schema SQL (`01_schema.sql` など) の CREATE TABLE に書き、deploy 後の次のベンチの initialize で入る。ベンチの合間に手で試すなら、サーバで `init.sh` を走らせる
+    - `db/<DB>.sql` も作って両方に書くと、mysqldef が「2 つのファイルがずれていないか」を deploy のたびに教えてくれるが、正が 2 つになって書き忘れが起きる。ISUCON9 予選の練習 (2026-10-07) では両方に書いたが、スコアに効いたのは `01_schema.sql` だけで、mysqldef は `idx_category_id` の付け替えを `-- Skipped:` で飛ばしていた
+  - どちらにしたかと、その理由を notes に書いておく
+  - 初期データが大きい (isucari は 120MB の `90_initial.sql`) と、initialize の 20 秒制限に効く。これも notes に残す
 - `git ls-files | grep -iE 'pem|ssl|tls|\.key|\.env$'` で秘密が入っていないことを確認してから commit / push。TLS の鍵は `/etc/nginx/ssl/` か `/etc/nginx/tls/` にあることが多く、`make etc-pull` はどちらも取り込まない (ISUCON13 は `tls/`)。ほかの場所にあれば `.gitignore` に足す
 
 ```sh

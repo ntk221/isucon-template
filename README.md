@@ -81,7 +81,9 @@ make show B=20261006-123712      # 前のベンチの結果を、measure と同�
   - 止めるときは、`main.go` から pprof の口を外して deploy する。`isu-pprof` は動いたままだが、取れずに 10 秒ごとに待つだけになる
 - DB のスキーマ (index など) は `db/<DB名>.sql` で管理する。`make deploy` が DB の台で mysqldef にかけ、差分の DDL だけを流す
   - 最初の 1 回だけ `make schema-pull DB=isupipe` で今の DB から書き出す。配布の `initdb.d/*.sql` は mysqldef が読めない書き方のことがある (ISUCON13 の `CHARACTER SET utf8mb4`)
-  - DROP (index やテーブルを消す) は流れない。ファイルから消しても DB には残るので、消すときは手で `--enable-drop` を付ける
+  - DROP (index やテーブルを消す) は流れない。ファイルから消しても DB には残るので、消すときは手で `--enable-drop` を付ける。既存の index の列を変える (同名で作り直す) のも DROP 扱いで、`-- Skipped:` と出て終了コードは 0 のまま流れない
+  - **`/initialize` が DROP TABLE → CREATE TABLE する問題 (ISUCON9 予選の `sql/01_schema.sql`) では、mysqldef は使わない。** ベンチのたびに mysqldef で足した index ごとテーブルが消え、配布の schema SQL で作り直されるので、index はその SQL の CREATE TABLE に書く。`db/<DB名>.sql` は作らない (`make schema-pull` を叩かない。`db/*.sql` が無ければ `make deploy` は何もしない)。2 つのファイルに同じ index を書いて同期を取るより、正を 1 つにしたほうが間違えない。ベンチの合間に手で試すときは、サーバで初期化スクリプト (`webapp/init.sh` など) を走らせて index を入れる
+  - mysqldef が効くのは、`/initialize` が TRUNCATE や DELETE だけでテーブルを残す問題 (ISUCON13)。どちらかは skill の手順 5 で確かめる
 - - 台の CPU は、全部の台の `isu-stat` が 1 秒ずつ記録し続けている (top を取り続けるのと同じ)。`make measure` がアクセスログからベンチの時間帯 (最後の initialize から、リクエストが 10 秒途切れるまで) を出し、コアごとの使用率とプロセスごとの %CPU の平均と最大を `log/<日時>/host.txt` にまとめる
 - ベンチの結果を AI に読ませるときは、`.claude/skills/isucon-read-log/` の skill を使う (「最新のベンチの log を読んで」)
 - ベンチだけ回し直すときは `make prep`（ログを空にする）
